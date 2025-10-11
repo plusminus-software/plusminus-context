@@ -44,4 +44,14 @@
         <developerConnection>scm:git:ssh://github.com:plusminus-software/plusminus-context.git</developerConnection>
         <url>https://github.com/plusminus-software/plusminus-context/tree/main</url>
     </scm>
+
+    <dependencies>
+        <!-- TEST -->
+        <dependency>
+            <groupId>software.plusminus</groupId>
+            <artifactId>plusminus-test</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -1,9 +1,32 @@
 package software.plusminus.context;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+
 public interface Context<T> {
-    
-    T get();
-    
-    void set(T value);
-    
+
+    ThreadLocal<Map<Object, Object>> VALUES = new ThreadLocal<>();
+
+    default T get() {
+        Map<Object, Object> values = VALUES.get();
+        if (values == null) {
+            throw new IllegalStateException("Context is not initialized");
+        }
+        return (T) values.computeIfAbsent(this, type -> provide());
+    }
+
+    T provide();
+
+    static void init() {
+        VALUES.set(new ConcurrentHashMap<>());
+    }
+
+    static void clear() {
+        VALUES.remove();
+    }
+
+    static <T> Context<T> of(Supplier<T> provider) {
+        return new SimpleContext<>(provider);
+    }
 }
