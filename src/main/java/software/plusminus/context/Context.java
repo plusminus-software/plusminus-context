@@ -13,7 +13,7 @@ public interface Context<T> {
         if (values == null) {
             throw new IllegalStateException("Context is not initialized");
         }
-        return (T) values.computeIfAbsent(this, type -> provide());
+        return (T) values.computeIfAbsent(this, self -> provide());
     }
 
     T provide();
