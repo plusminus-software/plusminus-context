@@ -6,10 +6,10 @@ import java.util.function.Supplier;
 
 public interface Context<T> {
 
-    ThreadLocal<Map<Object, Object>> VALUES = new ThreadLocal<>();
+    ThreadLocal<Map<Context<?>, Object>> VALUES = new ThreadLocal<>();
 
     default T get() {
-        Map<Object, Object> values = VALUES.get();
+        Map<Context<?>, Object> values = VALUES.get();
         if (values == null) {
             throw new IllegalStateException("Context is not initialized");
         }
