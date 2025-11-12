@@ -10,6 +10,15 @@ public interface WritableContext<T> extends Context<T> {
         throw new IllegalStateException("Missed value int the context for " + this);
     }
 
+    @Override
+    default Optional<T> optional() {
+        Map<Context<?>, Object> values = VALUES.get();
+        if (values == null) {
+            throw new IllegalStateException("Context is not initialized");
+        }
+        return Optional.ofNullable((T) values.get(this));
+    }
+
     default void set(T value) {
         Map<Context<?>, Object> values = VALUES.get();
         if (values == null) {
@@ -20,14 +29,6 @@ public interface WritableContext<T> extends Context<T> {
             throw new IllegalStateException("Cannot update context to " + value
                     + " as the context already contains " + previous);
         }
-    }
-
-    default Optional<T> getIfPresent() {
-        Map<Context<?>, Object> values = VALUES.get();
-        if (values == null) {
-            throw new IllegalStateException("Context is not initialized");
-        }
-        return Optional.ofNullable((T) values.get(this));
     }
 
     static <T> WritableContext<T> of() {

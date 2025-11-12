@@ -55,12 +55,12 @@ class WritableContextTest {
     }
 
     @Test
-    void getIfPresent() {
+    void optional() {
         WritableContext<Integer> integerContext = WritableContext.of();
 
-        Optional<Integer> empty = integerContext.getIfPresent();
+        Optional<Integer> empty = integerContext.optional();
         integerContext.set(42);
-        Optional<Integer> present = integerContext.getIfPresent();
+        Optional<Integer> present = integerContext.optional();
 
         assertThat(empty).isEmpty();
         assertThat(present).isPresent()

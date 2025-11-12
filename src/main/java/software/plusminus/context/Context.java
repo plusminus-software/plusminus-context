@@ -1,6 +1,7 @@
 package software.plusminus.context;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -14,6 +15,10 @@ public interface Context<T> {
             throw new IllegalStateException("Context is not initialized");
         }
         return (T) values.computeIfAbsent(this, self -> provide());
+    }
+
+    default Optional<T> optional() {
+        return Optional.ofNullable(get());
     }
 
     T provide();
