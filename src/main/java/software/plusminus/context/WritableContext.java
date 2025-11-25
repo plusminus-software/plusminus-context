@@ -24,11 +24,20 @@ public interface WritableContext<T> extends Context<T> {
         if (values == null) {
             throw new IllegalStateException("Context is not initialized");
         }
-        Object previous = values.putIfAbsent(this, value);
+        Object previous = values.get(this);
         if (previous != null) {
             throw new IllegalStateException("Cannot update context to " + value
                     + " as the context already contains " + previous);
         }
+        values.put(this, value);
+    }
+
+    default void setOrReplace(T value) {
+        Map<Context<?>, Object> values = VALUES.get();
+        if (values == null) {
+            throw new IllegalStateException("Context is not initialized");
+        }
+        values.put(this, value);
     }
 
     static <T> WritableContext<T> of() {
