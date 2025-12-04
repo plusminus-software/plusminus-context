@@ -34,4 +34,13 @@ public interface Context<T> {
     static <T> Context<T> of(Supplier<T> provider) {
         return new SimpleContext<>(provider);
     }
+
+    static void run(Runnable runnable) {
+        init();
+        try {
+            runnable.run();
+        } finally {
+            clear();
+        }
+    }
 }
