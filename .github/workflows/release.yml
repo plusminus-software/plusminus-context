@@ -8,4 +8,6 @@ on:
 jobs:
   release:
     uses: plusminus-software/plusminus-opensource/.github/workflows/maven-central-release.yml@main
+    with:
+      java-version: '8'
     secrets: inherit
