@@ -1,0 +1,11 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    uses: plusminus-software/plusminus-opensource/.github/workflows/maven-central-release.yml@main
+    secrets: inherit

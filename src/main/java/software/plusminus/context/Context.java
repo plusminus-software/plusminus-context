@@ -2,6 +2,7 @@ package software.plusminus.context;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -39,6 +40,17 @@ public interface Context<T> {
         init();
         try {
             runnable.run();
+        } finally {
+            clear();
+        }
+    }
+
+    static <T> T run(Callable<T> callable) {
+        init();
+        try {
+            return callable.call();
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
         } finally {
             clear();
         }
