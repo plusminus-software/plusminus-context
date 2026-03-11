@@ -1,4 +1,4 @@
-package software.plusminus.transaction.context;
+package software.plusminus.context;
 
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;

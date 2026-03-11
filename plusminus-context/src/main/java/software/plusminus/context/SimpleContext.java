@@ -1,4 +1,4 @@
-package software.plusminus.context.context;
+package software.plusminus.context;
 
 import lombok.AllArgsConstructor;
 

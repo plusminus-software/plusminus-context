@@ -1,4 +1,4 @@
-package software.plusminus.transaction.context.config;
+package software.plusminus.context.config;
 
 import lombok.AllArgsConstructor;
 import org.springframework.lang.Nullable;
@@ -6,7 +6,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
-import software.plusminus.transaction.context.TransactionContext;
+import software.plusminus.context.TransactionContext;
 
 @AllArgsConstructor
 public class ContextTransactionManager implements PlatformTransactionManager {

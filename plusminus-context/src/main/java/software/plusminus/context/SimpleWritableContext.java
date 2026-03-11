@@ -1,4 +1,4 @@
-package software.plusminus.context.context;
+package software.plusminus.context;
 
 public final class SimpleWritableContext<T> implements WritableContext<T> {
 }

@@ -1,4 +1,4 @@
-package software.plusminus.transaction.context.fixtures;
+package software.plusminus.context.fixtures;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;

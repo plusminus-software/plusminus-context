@@ -1,4 +1,4 @@
-package software.plusminus.context.context;
+package software.plusminus.context;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

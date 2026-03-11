@@ -1,4 +1,4 @@
-package software.plusminus.transaction.context.config;
+package software.plusminus.context.config;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
