@@ -4,16 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>software.plusminus</groupId>
-    <artifactId>plusminus-context</artifactId>
-    <version>1.0-SNAPSHOT</version>
-
     <parent>
         <groupId>software.plusminus</groupId>
         <artifactId>plusminus-parent</artifactId>
         <version>1.4-SNAPSHOT</version>
         <relativePath/>
     </parent>
+
+    <artifactId>plusminus-context-parent</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
 
     <name>Plusminus Context</name>
     <description>Implementation of a cross-cutting context.</description>
@@ -40,19 +40,14 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/plusminus-software/plusminus-context.git</connection>
-        <developerConnection>scm:git:ssh://github.com:plusminus-software/plusminus-context.git</developerConnection>
         <url>https://github.com/plusminus-software/plusminus-context/tree/main</url>
+        <connection>scm:git:git://github.com/plusminus-software/plusminus-context.git</connection>
     </scm>
 
-    <dependencies>
-        <!-- TEST -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>plusminus-transactional-context</module>
+        <module>plusminus-context</module>
+    </modules>
 
     <repositories>
         <repository>
