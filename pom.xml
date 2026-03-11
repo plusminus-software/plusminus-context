@@ -19,6 +19,25 @@
     <description>Implementation of a cross-cutting context.</description>
     <url>https://github.com/plusminus-software/plusminus-context</url>
 
+    <modules>
+        <module>plusminus-transaction-context</module>
+        <module>plusminus-context</module>
+    </modules>
+
+    <scm>
+        <url>https://github.com/plusminus-software/plusminus-context</url>
+        <connection>scm:git:https://github.com/plusminus-software/plusminus-context.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/plusminus-software/plusminus-context.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+    <issueManagement>
+        <system>Github Issues</system>
+        <url>https://github.com/plusminus-software/plusminus-context/issues</url>
+    </issueManagement>
+    <ciManagement>
+        <system>Github Actions</system>
+        <url>https://github.com/plusminus-software/plusminus-context/actions</url>
+    </ciManagement>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -26,7 +45,6 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-
     <developers>
         <developer>
             <name>Taras Shpek</name>
@@ -38,17 +56,6 @@
             <timezone>Europe/Kyiv</timezone>
         </developer>
     </developers>
-
-    <scm>
-        <url>https://github.com/plusminus-software/plusminus-context</url>
-        <connection>scm:git:git://github.com/plusminus-software/plusminus-context.git</connection>
-        <developerConnection>scm:git:git@github.com:plusminus-software/plusminus-context.git</developerConnection>
-    </scm>
-
-    <modules>
-        <module>plusminus-transaction-context</module>
-        <module>plusminus-context</module>
-    </modules>
 
     <repositories>
         <repository>
