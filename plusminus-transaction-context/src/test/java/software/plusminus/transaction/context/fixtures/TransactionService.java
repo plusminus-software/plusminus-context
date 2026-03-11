@@ -5,7 +5,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class TransactionalService {
+public class TransactionService {
 
     @Transactional
     public void inTransaction(Runnable runnable) {

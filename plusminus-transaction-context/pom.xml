@@ -10,9 +10,9 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>plusminus-transactional-context</artifactId>
+    <artifactId>plusminus-transaction-context</artifactId>
 
-    <name>Plusminus Transactional Context</name>
+    <name>Plusminus Transaction Context</name>
     <description>Implementation of transaction-scoped context.</description>
 
     <dependencies>

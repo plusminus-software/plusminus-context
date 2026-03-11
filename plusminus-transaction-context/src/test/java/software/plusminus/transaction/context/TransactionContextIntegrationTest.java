@@ -3,7 +3,7 @@ package software.plusminus.transaction.context;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import software.plusminus.transaction.context.fixtures.TransactionalService;
+import software.plusminus.transaction.context.fixtures.TransactionService;
 
 import java.util.List;
 import java.util.Map;
@@ -18,7 +18,7 @@ class TransactionContextIntegrationTest {
     public static final String TEST_VALUE = "testValue";
 
     @Autowired
-    private TransactionalService transactionalService;
+    private TransactionService transactionService;
     private AtomicInteger index = new AtomicInteger(1);
     private TransactionContext<String> transactionContext = TransactionContext.of(
             () -> TEST_VALUE + index.getAndIncrement());
@@ -30,15 +30,15 @@ class TransactionContextIntegrationTest {
 
     @Test
     void singleTransaction() {
-        transactionalService.inTransaction(() -> checkContext(1));
+        transactionService.inTransaction(() -> checkContext(1));
         checkContextOutsideTransaction();
     }
 
     @Test
     void joinedTransactions() {
-        transactionalService.inTransaction(() -> {
+        transactionService.inTransaction(() -> {
             checkContext(1);
-            transactionalService.inTransaction(() -> checkContext(1));
+            transactionService.inTransaction(() -> checkContext(1));
             checkContext(1);
         });
         checkContextOutsideTransaction();
@@ -46,13 +46,13 @@ class TransactionContextIntegrationTest {
 
     @Test
     void nestedNewTransactions() {
-        transactionalService.inTransaction(() -> {
+        transactionService.inTransaction(() -> {
             checkContext(1);
-            transactionalService.inNewTransaction(() -> {
+            transactionService.inNewTransaction(() -> {
                 checkContext(2);
-                transactionalService.inTransaction(() -> {
+                transactionService.inTransaction(() -> {
                     checkContext(2);
-                    transactionalService.inNewTransaction(() -> checkContext(3));
+                    transactionService.inNewTransaction(() -> checkContext(3));
                     checkContext(2);
                 });
                 checkContext(2);

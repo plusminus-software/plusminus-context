@@ -45,7 +45,7 @@
     </scm>
 
     <modules>
-        <module>plusminus-transactional-context</module>
+        <module>plusminus-transaction-context</module>
         <module>plusminus-context</module>
     </modules>
 
