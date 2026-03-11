@@ -4,6 +4,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan("software.plusminus.transaction.context")
+@ComponentScan("software.plusminus.context")
 public class TransactionContextAutoconfig {
 }
