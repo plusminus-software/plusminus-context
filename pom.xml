@@ -15,7 +15,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Plusminus Context</name>
+    <name>Plusminus Context Parent</name>
     <description>Implementation of a cross-cutting context.</description>
     <url>https://github.com/plusminus-software/plusminus-context</url>
 

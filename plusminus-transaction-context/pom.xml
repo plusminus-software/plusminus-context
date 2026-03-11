@@ -31,14 +31,24 @@
         </dependency>
         <!-- TEST -->
         <dependency>
+            <groupId>software.plusminus</groupId>
+            <artifactId>plusminus-check</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>software.plusminus</groupId>
-            <artifactId>plusminus-test</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
