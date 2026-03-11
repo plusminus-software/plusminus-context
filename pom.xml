@@ -40,8 +40,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/plusminus-software/plusminus-context/tree/main</url>
+        <url>https://github.com/plusminus-software/plusminus-context</url>
         <connection>scm:git:git://github.com/plusminus-software/plusminus-context.git</connection>
+        <developerConnection>scm:git:git@github.com:plusminus-software/plusminus-context.git</developerConnection>
     </scm>
 
     <modules>
