@@ -20,8 +20,10 @@
     <url>https://github.com/plusminus-software/plusminus-context</url>
 
     <modules>
-        <module>plusminus-transaction-context</module>
         <module>plusminus-context</module>
+        <module>plusminus-scope</module>
+        <module>plusminus-http-context</module>
+        <module>plusminus-transactional-context</module>
     </modules>
 
     <scm>
@@ -56,6 +58,15 @@
             <timezone>Europe/Kyiv</timezone>
         </developer>
     </developers>
+
+    <dependencies>
+        <!-- TEST -->
+        <dependency>
+            <groupId>software.plusminus</groupId>
+            <artifactId>plusminus-check</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 
     <repositories>
         <repository>
