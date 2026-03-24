@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest(classes = ContextIntegrationTest.TestConfig.class)
 @ExtendWith(MockitoExtension.class)
@@ -20,7 +21,7 @@ class ContextIntegrationTest {
 
     @SpyBean
     private Context<Integer> integerContext;
-    @SpyBean
+    @Autowired
     private Context<String> stringContext;
     @Autowired
     private List<ClearableContext<?>> clearableContexts;
@@ -34,6 +35,7 @@ class ContextIntegrationTest {
     void get() {
         String result = stringContext.get();
         assertThat(result).isEqualTo("42");
+        verify(integerContext).get();
     }
 
     @Configuration
