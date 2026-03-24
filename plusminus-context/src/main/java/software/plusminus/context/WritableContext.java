@@ -30,14 +30,7 @@ public interface WritableContext<T> extends Context<T> {
     }
 
     static <T> WritableContext<T> of(Supplier<T> supplier, boolean inheritable) {
-        ThreadLocal<T> threadLocal = inheritable
-                ? new InheritableThreadLocal<T>() {
-            @Override
-            protected T initialValue() {
-                return supplier.get();
-            }
-        }
-                : new ThreadLocal.withInitial(supplier);
+        ThreadLocal<T> threadLocal = ThreadLocalUtil.createThreadLocal(supplier, inheritable);
         return new WritableThreadLocalContext<>(threadLocal);
     }
 }
