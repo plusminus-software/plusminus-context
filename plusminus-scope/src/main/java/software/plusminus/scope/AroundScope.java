@@ -11,7 +11,7 @@ public interface AroundScope {
 
     static Runnable around(List<AroundScope> arounds, Object source, Runnable runnable) {
         if (arounds.isEmpty()) {
-            runnable.run();
+            return runnable;
         }
         Runnable result = runnable;
         List<AroundScope> filteredArounds = arounds.stream()
@@ -23,5 +23,9 @@ public interface AroundScope {
             result = () -> around.around(current);
         }
         return result;
+    }
+
+    static void run(List<AroundScope> arounds, Object source, Runnable runnable) {
+        around(arounds, source, runnable).run();
     }
 }

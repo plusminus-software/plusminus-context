@@ -17,17 +17,17 @@ public class ScopeRunner {
     private ApplicationEventPublisher eventPublisher;
     private List<AroundScope> arounds;
 
-    public void run(Object source, ThrowingRunnable scope) {
-        run(source, scope.asRunnable());
-    }
+    @SafeVarargs
+    public final void run(Object source, ThrowingRunnable scope,
+                          Class<? extends Exception>... exceptionsToExtract) {
 
-    private void run(Object source, Runnable scope) {
         eventPublisher.publishEvent(new ScopeStartedEvent());
         try {
-            AroundScope.around(arounds, source, scope).run();
+            AroundScope.around(arounds, source, scope.asRunnable()).run();
             eventPublisher.publishEvent(new ScopeCompletedEvent());
         } catch (Exception e) {
-            eventPublisher.publishEvent(new ScopeFailedEvent(e));
+            Exception extractedException = ExceptionExtractor.extract(e, exceptionsToExtract);
+            eventPublisher.publishEvent(new ScopeFailedEvent<>(extractedException));
             throw e;
         } finally {
             eventPublisher.publishEvent(new ScopeFinalizedEvent());

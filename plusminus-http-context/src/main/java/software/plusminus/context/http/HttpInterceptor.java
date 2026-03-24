@@ -10,7 +10,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.util.NestedServletException;
 import software.plusminus.context.WritableContext;
+import software.plusminus.scope.ExceptionExtractor;
 import software.plusminus.scope.events.InvocationCompletedEvent;
 import software.plusminus.scope.events.InvocationFailedEvent;
 import software.plusminus.scope.events.InvocationFinalizedEvent;
@@ -39,7 +41,7 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
                              Object handler) {
         if (request.getDispatcherType() == DispatcherType.REQUEST) {
             populateHandlerContext(handler);
-            InvocationStartedEvent event = new InvocationStartedEvent();
+            InvocationStartedEvent<?> event = new InvocationStartedEvent<>(handler);
             eventPublisher.publishEvent(event);
             return !event.isIntercepted();
         }
@@ -52,7 +54,7 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
         if (request.getDispatcherType() != DispatcherType.REQUEST) {
             return;
         }
-        eventPublisher.publishEvent(new InvocationCompletedEvent());
+        eventPublisher.publishEvent(new InvocationCompletedEvent<>(handler, modelAndView));
     }
 
     @Override
@@ -62,9 +64,10 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
             return;
         }
         if (ex != null) {
-            eventPublisher.publishEvent(new InvocationFailedEvent(ex));
+            Exception extractedException = ExceptionExtractor.extract(ex, NestedServletException.class);
+            eventPublisher.publishEvent(new InvocationFailedEvent<>(handler, extractedException));
         }
-        eventPublisher.publishEvent(new InvocationFinalizedEvent());
+        eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
     }
 
     private void populateHandlerContext(Object handler) {

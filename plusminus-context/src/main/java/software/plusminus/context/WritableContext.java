@@ -1,52 +1,43 @@
 package software.plusminus.context;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.function.Supplier;
 
 public interface WritableContext<T> extends Context<T> {
 
-    @Override
-    default T provide() {
-        throw new IllegalStateException("Missed value int the context for " + this);
-    }
+    void set(T value);
 
-    @Override
-    default Optional<T> optional() {
-        Map<Context<?>, Object> values = VALUES.get();
-        if (values == null) {
-            throw new IllegalStateException("Context is not initialized");
-        }
-        return Optional.ofNullable((T) values.get(this));
-    }
-
-    default void set(T value) {
-        Map<Context<?>, Object> values = VALUES.get();
-        if (values == null) {
-            throw new IllegalStateException("Context is not initialized");
-        }
-        Object previous = values.get(this);
-        if (previous != null) {
-            throw new IllegalStateException("Cannot update context to " + value
-                    + " as the context already contains " + previous);
-        }
-        values.put(this, value);
-    }
-
-    default void setOrReplace(T value) {
-        Map<Context<?>, Object> values = VALUES.get();
-        if (values == null) {
-            throw new IllegalStateException("Context is not initialized");
-        }
-        values.put(this, value);
-    }
+    void replace(T value);
 
     static <T> WritableContext<T> of() {
-        return new SimpleWritableContext<>();
+        return of(true);
     }
 
-    static <T> WritableContext<T> of(T value) {
-        WritableContext<T> context = new SimpleWritableContext<>();
-        context.set(value);
-        return context;
+    static <T> WritableContext<T> of(boolean inheritable) {
+        ThreadLocal<T> threadLocal = inheritable ? new InheritableThreadLocal<>() : new ThreadLocal<>();
+        return new WritableThreadLocalContext<>(threadLocal);
+    }
+
+    static <T> WritableContext<T> of(T initialValue) {
+        return of(initialValue, true);
+    }
+
+    static <T> WritableContext<T> of(T initialValue, boolean inheritable) {
+        return of(() -> initialValue, inheritable);
+    }
+
+    static <T> WritableContext<T> of(Supplier<T> supplier) {
+        return of(supplier, true);
+    }
+
+    static <T> WritableContext<T> of(Supplier<T> supplier, boolean inheritable) {
+        ThreadLocal<T> threadLocal = inheritable
+                ? new InheritableThreadLocal<T>() {
+            @Override
+            protected T initialValue() {
+                return supplier.get();
+            }
+        }
+                : new ThreadLocal.withInitial(supplier);
+        return new WritableThreadLocalContext<>(threadLocal);
     }
 }

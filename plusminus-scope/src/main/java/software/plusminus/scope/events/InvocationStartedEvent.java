@@ -1,10 +1,15 @@
 package software.plusminus.scope.events;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-public class InvocationStartedEvent {
+public class InvocationStartedEvent<T> extends AbstractInvocationEvent<T> {
 
+    @Getter
+    @Setter
     private boolean intercepted;
 
+    public InvocationStartedEvent(T target) {
+        super(target);
+    }
 }

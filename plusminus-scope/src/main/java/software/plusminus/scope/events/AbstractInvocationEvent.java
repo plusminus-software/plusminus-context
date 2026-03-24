@@ -6,16 +6,13 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.ResolvableTypeProvider;
 
 @AllArgsConstructor
-@Getter
-public class ScopeFailedEvent<E extends Exception> implements ResolvableTypeProvider {
+public class AbstractInvocationEvent<T> implements ResolvableTypeProvider {
 
-    private E exception;
+    @Getter
+    private T target;
 
     @Override
     public ResolvableType getResolvableType() {
-        return ResolvableType.forClassWithGenerics(
-                getClass(),
-                ResolvableType.forInstance(exception)
-        );
+        return ResolvableType.forClassWithGenerics(getClass(), ResolvableType.forInstance(target));
     }
 }

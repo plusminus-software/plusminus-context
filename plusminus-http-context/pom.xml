@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>plusminus-http-context</artifactId>
-    <name>Plusminus Http Scope</name>
+    <name>Plusminus Http Context</name>
 
     <dependencies>
         <dependency>

@@ -7,31 +7,31 @@ import software.plusminus.scope.events.ScopeFailedEvent;
 import software.plusminus.scope.events.ScopeFinalizedEvent;
 import software.plusminus.scope.events.ScopeStartedEvent;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Component
-public class TestListener {
-
-    public List<String> calls = new ArrayList<>();
+public class TestScopeListener {
 
     @EventListener
-    void started(ScopeStartedEvent event) {
-        calls.add("started");
+    public void started(ScopeStartedEvent event) {
+        //Test method
     }
 
     @EventListener
-    void completed(ScopeCompletedEvent event) {
-        calls.add("completed");
+    public void completed(ScopeCompletedEvent event) {
+        //Test method
     }
 
     @EventListener
-    void failed(ScopeFailedEvent event) {
-        calls.add("failed");
+    public void failed(ScopeFailedEvent<?> event) {
+        //Test method
     }
 
     @EventListener
-    void finalized(ScopeFinalizedEvent event) {
-        calls.add("finalized");
+    public void failedWithSpecificException(ScopeFailedEvent<? extends IllegalArgumentException> event) {
+        //Test method
+    }
+
+    @EventListener
+    public void finalized(ScopeFinalizedEvent event) {
+        //Test method
     }
 }

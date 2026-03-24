@@ -1,58 +1,43 @@
 package software.plusminus.context;
 
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 public interface Context<T> {
 
-    ThreadLocal<Map<Context<?>, Object>> VALUES = new ThreadLocal<>();
-
-    default T get() {
-        Map<Context<?>, Object> values = VALUES.get();
-        if (values == null) {
-            throw new IllegalStateException("Context is not initialized");
-        }
-        return (T) values.computeIfAbsent(this, self -> provide());
-    }
+    T get();
 
     default Optional<T> optional() {
         return Optional.ofNullable(get());
     }
 
-    T provide();
+    boolean isInheritable();
 
-    static void init() {
-        VALUES.set(new ConcurrentHashMap<>());
+    static <T> Context<T> constant(T value) {
+        return new ConstantContext<>(value);
     }
 
-    static void clear() {
-        VALUES.remove();
+    static <T> Context<T> of(T initialValue) {
+        return of(initialValue, true);
     }
 
-    static <T> Context<T> of(Supplier<T> provider) {
-        return new SimpleContext<>(provider);
+    static <T> Context<T> of(T initialValue, boolean inheritable) {
+        return of(() -> initialValue, inheritable);
     }
 
-    static void run(Runnable runnable) {
-        init();
-        try {
-            runnable.run();
-        } finally {
-            clear();
-        }
+    static <T> Context<T> of(Supplier<T> supplier) {
+        return of(supplier, true);
     }
 
-    static <T> T run(Callable<T> callable) {
-        init();
-        try {
-            return callable.call();
-        } catch (Exception e) {
-            throw new IllegalArgumentException(e);
-        } finally {
-            clear();
-        }
+    static <T> Context<T> of(Supplier<T> supplier, boolean inheritable) {
+        ThreadLocal<T> threadLocal = inheritable
+                ? new InheritableThreadLocal<T>() {
+                    @Override
+                    protected T initialValue() {
+                        return supplier.get();
+                    }
+                }
+                : new ThreadLocal.withInitial(supplier);
+        return new ThreadLocalContext<>(threadLocal);
     }
 }
