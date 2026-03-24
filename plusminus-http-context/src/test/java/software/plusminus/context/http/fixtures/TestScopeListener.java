@@ -26,7 +26,7 @@ public class TestScopeListener {
     }
 
     @EventListener
-    public void failedWithSpecificException(ScopeFailedEvent<? extends IllegalArgumentException> event) {
+    public void unknownFailed(ScopeFailedEvent<? extends SecurityException> event) {
         //Test method
     }
 

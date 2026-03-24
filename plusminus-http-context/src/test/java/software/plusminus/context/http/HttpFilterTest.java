@@ -3,6 +3,7 @@ package software.plusminus.context.http;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
@@ -17,10 +18,13 @@ import software.plusminus.scope.events.ScopeFailedEvent;
 import software.plusminus.scope.events.ScopeFinalizedEvent;
 import software.plusminus.scope.events.ScopeStartedEvent;
 
+import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static software.plusminus.check.Checks.check;
@@ -62,10 +66,13 @@ class HttpFilterTest {
         String response = restTemplate.getForObject(url, String.class);
 
         check(response).is("ok");
-        verify(listener).started(any(ScopeStartedEvent.class));
-        verify(listener).completed(any(ScopeCompletedEvent.class));
-        verify(listener, never()).failed(any());
-        verify(listener).finalized(any(ScopeFinalizedEvent.class));
+        InOrder inOrder = inOrder(listener);
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
+            inOrder.verify(listener).completed(any(ScopeCompletedEvent.class));
+            verify(listener, never()).failed(any());
+            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
+        });
     }
 
     @Test
@@ -75,11 +82,14 @@ class HttpFilterTest {
         ResponseEntity<?> response = restTemplate.getForEntity(url, Object.class);
 
         check(response.getStatusCode()).is(HttpStatus.INTERNAL_SERVER_ERROR);
-        verify(listener).started(any(ScopeStartedEvent.class));
-        verify(listener, never()).completed(any());
-        verify(listener).failed(failedEventCaptor.capture());
-        verify(listener, never()).failedWithSpecificException(any(ScopeFailedEvent.class));
-        verify(listener).finalized(any(ScopeFinalizedEvent.class));
+        InOrder inOrder = inOrder(listener);
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
+            verify(listener, never()).completed(any());
+            inOrder.verify(listener).failed(failedEventCaptor.capture());
+            verify(listener, never()).unknownFailed(any());
+            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
+        });
         Exception exception = failedEventCaptor.getValue().getException();
         Class exceptionType = exception.getClass();
         check(exceptionType).isEqual(IllegalStateException.class);

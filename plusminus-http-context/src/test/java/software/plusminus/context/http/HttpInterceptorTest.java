@@ -19,7 +19,10 @@ import software.plusminus.scope.events.InvocationFailedEvent;
 import software.plusminus.scope.events.InvocationFinalizedEvent;
 import software.plusminus.scope.events.InvocationStartedEvent;
 
+import java.util.concurrent.TimeUnit;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -35,7 +38,7 @@ class HttpInterceptorTest {
     @SpyBean
     private WritableContext<HandlerMethod> handlerMethodContext;
     @SpyBean
-    private TestInvocationListener invocationListener;
+    private TestInvocationListener listener;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -60,11 +63,13 @@ class HttpInterceptorTest {
         String response = restTemplate.getForObject(url, String.class);
 
         check(response).is("ok");
-        InOrder inOrder = inOrder(invocationListener);
-        inOrder.verify(invocationListener).started(any(InvocationStartedEvent.class));
-        inOrder.verify(invocationListener).completed(any(InvocationCompletedEvent.class));
-        inOrder.verify(invocationListener, never()).failed(any());
-        inOrder.verify(invocationListener).finalized(any(InvocationFinalizedEvent.class));
+        InOrder inOrder = inOrder(listener);
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            inOrder.verify(listener).started(any(InvocationStartedEvent.class));
+            inOrder.verify(listener).completed(any(InvocationCompletedEvent.class));
+            inOrder.verify(listener, never()).failed(any());
+            inOrder.verify(listener).finalized(any(InvocationFinalizedEvent.class));
+        });
     }
 
     @Test
@@ -74,13 +79,15 @@ class HttpInterceptorTest {
         ResponseEntity<?> response = restTemplate.getForEntity(url, Object.class);
 
         check(response.getStatusCode()).is(HttpStatus.INTERNAL_SERVER_ERROR);
-        InOrder inOrder = inOrder(invocationListener);
-        inOrder.verify(invocationListener).started(any(InvocationStartedEvent.class));
-        inOrder.verify(invocationListener, never()).completed(any());
-        inOrder.verify(invocationListener).failed(failedEventCaptor.capture());
-        verify(invocationListener).failedWithSpecificException(any(InvocationFailedEvent.class));
-        verify(invocationListener, never()).failedWithUnknownException(any());
-        inOrder.verify(invocationListener).finalized(any(InvocationFinalizedEvent.class));
+        InOrder inOrder = inOrder(listener);
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            inOrder.verify(listener).started(any(InvocationStartedEvent.class));
+            inOrder.verify(listener, never()).completed(any());
+            inOrder.verify(listener).failed(failedEventCaptor.capture());
+            verify(listener).failedWithSpecificException(any(InvocationFailedEvent.class));
+            verify(listener, never()).failedWithUnknownException(any());
+            inOrder.verify(listener).finalized(any(InvocationFinalizedEvent.class));
+        });
         Exception exception = failedEventCaptor.getValue().getException();
         Class exceptionType = exception.getClass();
         check(exceptionType).isEqual(IllegalStateException.class);
