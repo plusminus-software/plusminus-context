@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.method.HandlerMethod;
 import software.plusminus.context.WritableContext;
 import software.plusminus.context.http.fixtures.TestInvocationListener;
-import software.plusminus.context.http.fixtures.TestScopeListener;
 import software.plusminus.scope.events.InvocationCompletedEvent;
 import software.plusminus.scope.events.InvocationFailedEvent;
 import software.plusminus.scope.events.InvocationFinalizedEvent;
@@ -38,8 +37,6 @@ class HttpInterceptorTest {
     @SpyBean
     private TestInvocationListener invocationListener;
 
-    @Autowired
-    private TestScopeListener listener;
     @Autowired
     private TestRestTemplate restTemplate;
 
@@ -81,8 +78,8 @@ class HttpInterceptorTest {
         inOrder.verify(invocationListener).started(any(InvocationStartedEvent.class));
         inOrder.verify(invocationListener, never()).completed(any());
         inOrder.verify(invocationListener).failed(failedEventCaptor.capture());
-        inOrder.verify(invocationListener).failedWithSpecificException(any(InvocationFailedEvent.class));
-        inOrder.verify(invocationListener, never()).failedWithUnknownException(any());
+        verify(invocationListener).failedWithSpecificException(any(InvocationFailedEvent.class));
+        verify(invocationListener, never()).failedWithUnknownException(any());
         inOrder.verify(invocationListener).finalized(any(InvocationFinalizedEvent.class));
         Exception exception = failedEventCaptor.getValue().getException();
         Class exceptionType = exception.getClass();

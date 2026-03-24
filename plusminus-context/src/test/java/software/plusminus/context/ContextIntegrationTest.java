@@ -1,6 +1,5 @@
 package software.plusminus.context;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -9,8 +8,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -23,13 +20,6 @@ class ContextIntegrationTest {
     private Context<Integer> integerContext;
     @Autowired
     private Context<String> stringContext;
-    @Autowired
-    private List<ClearableContext<?>> clearableContexts;
-
-    @AfterEach
-    void after() {
-        clearableContexts.forEach(ClearableContext::clear);
-    }
 
     @Test
     void get() {

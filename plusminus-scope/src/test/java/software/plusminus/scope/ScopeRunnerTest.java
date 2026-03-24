@@ -8,9 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import software.plusminus.scope.fixtures.FirstAroundScope;
+import software.plusminus.scope.fixtures.NotSupportedAroundScope;
 import software.plusminus.scope.fixtures.SecondAroundScope;
 import software.plusminus.scope.fixtures.TestListener;
-import software.plusminus.scope.fixtures.NotSupportedAroundScope;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,13 +35,13 @@ class ScopeRunnerTest {
 
     @AfterEach
     void afterEach() {
-        testListener.calls.clear();
+        testListener.calls().clear();
     }
 
     @Test
     void success() {
         scopeRunner.run(this, () -> { });
-        check(testListener.calls).is("started", "completed", "finalized");
+        check(testListener.calls()).is("started", "completed", "finalized");
     }
 
     @Test
@@ -50,7 +50,7 @@ class ScopeRunnerTest {
             throw new RuntimeException("Test exception");
         }));
         check(exception.getMessage()).is("Test exception");
-        check(testListener.calls).is("started", "failed", "finalized");
+        check(testListener.calls()).is("started", "failed", "finalized");
     }
 
     @Test

@@ -13,7 +13,7 @@ import java.util.List;
 @Component
 public class TestListener {
 
-    public List<String> calls = new ArrayList<>();
+    private List<String> calls = new ArrayList<>();
 
     @EventListener
     void started(ScopeStartedEvent event) {
@@ -33,5 +33,9 @@ public class TestListener {
     @EventListener
     void finalized(ScopeFinalizedEvent event) {
         calls.add("finalized");
+    }
+
+    public List<String> calls() {
+        return calls;
     }
 }
