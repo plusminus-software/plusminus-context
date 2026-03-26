@@ -1,4 +1,4 @@
-package software.plusminus.context.http;
+package software.plusminus.http.context;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,17 +11,17 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.method.HandlerMethod;
 import software.plusminus.context.WritableContext;
-import software.plusminus.context.http.fixtures.TestInvocationListener;
-import software.plusminus.scope.events.InvocationCompletedEvent;
-import software.plusminus.scope.events.InvocationFailedEvent;
-import software.plusminus.scope.events.InvocationFinalizedEvent;
-import software.plusminus.scope.events.InvocationStartedEvent;
+import software.plusminus.http.context.fixtures.TestScopeListener;
+import software.plusminus.scope.events.ScopeCompletedEvent;
+import software.plusminus.scope.events.ScopeFailedEvent;
+import software.plusminus.scope.events.ScopeFinalizedEvent;
+import software.plusminus.scope.events.ScopeStartedEvent;
 
 import java.util.concurrent.TimeUnit;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
@@ -30,21 +30,23 @@ import static org.mockito.Mockito.verify;
 import static software.plusminus.check.Checks.check;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class HttpInterceptorTest {
+class HttpFilterTest {
 
     @LocalServerPort
     private int port;
 
     @SpyBean
-    private WritableContext<HandlerMethod> handlerMethodContext;
+    private WritableContext<HttpServletRequest> requestContext;
     @SpyBean
-    private TestInvocationListener listener;
+    private WritableContext<HttpServletResponse> responseContext;
+    @SpyBean
+    private TestScopeListener listener;
 
     @Autowired
     private TestRestTemplate restTemplate;
 
     @Captor
-    private ArgumentCaptor<InvocationFailedEvent<HandlerMethod, ?>> failedEventCaptor;
+    private ArgumentCaptor<ScopeFailedEvent<?>> failedEventCaptor;
 
     @Test
     void writableContext() {
@@ -52,8 +54,9 @@ class HttpInterceptorTest {
 
         String response = restTemplate.getForObject(url, String.class);
 
-        assertThat(response).isEqualTo("ok");
-        verify(handlerMethodContext).set(any(HandlerMethod.class));
+        check(response).is("ok");
+        verify(requestContext).set(any(HttpServletRequest.class));
+        verify(responseContext).set(any(HttpServletResponse.class));
     }
 
     @Test
@@ -65,10 +68,10 @@ class HttpInterceptorTest {
         check(response).is("ok");
         InOrder inOrder = inOrder(listener);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            inOrder.verify(listener).started(any(InvocationStartedEvent.class));
-            inOrder.verify(listener).completed(any(InvocationCompletedEvent.class));
-            inOrder.verify(listener, never()).failed(any());
-            inOrder.verify(listener).finalized(any(InvocationFinalizedEvent.class));
+            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
+            inOrder.verify(listener).completed(any(ScopeCompletedEvent.class));
+            verify(listener, never()).failed(any());
+            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
         });
     }
 
@@ -81,12 +84,11 @@ class HttpInterceptorTest {
         check(response.getStatusCode()).is(HttpStatus.INTERNAL_SERVER_ERROR);
         InOrder inOrder = inOrder(listener);
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            inOrder.verify(listener).started(any(InvocationStartedEvent.class));
-            inOrder.verify(listener, never()).completed(any());
+            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
+            verify(listener, never()).completed(any());
             inOrder.verify(listener).failed(failedEventCaptor.capture());
-            verify(listener).failedWithSpecificException(any(InvocationFailedEvent.class));
-            verify(listener, never()).failedWithUnknownException(any());
-            inOrder.verify(listener).finalized(any(InvocationFinalizedEvent.class));
+            verify(listener, never()).unknownFailed(any());
+            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
         });
         Exception exception = failedEventCaptor.getValue().getException();
         Class exceptionType = exception.getClass();

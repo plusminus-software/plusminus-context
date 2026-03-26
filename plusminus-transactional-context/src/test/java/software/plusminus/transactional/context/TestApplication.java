@@ -1,4 +1,4 @@
-package software.plusminus.context;
+package software.plusminus.transactional.context;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

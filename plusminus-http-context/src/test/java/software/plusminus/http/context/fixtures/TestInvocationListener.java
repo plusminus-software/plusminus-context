@@ -1,4 +1,4 @@
-package software.plusminus.context.http.fixtures;
+package software.plusminus.http.context.fixtures;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;

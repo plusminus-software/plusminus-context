@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-software.plusminus.context.http.config.HttpContextAutoconfig
+software.plusminus.http.context.config.HttpContextAutoconfig

@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-software.plusminus.context.transactional.config.TransactionalContextAutoconfig
+software.plusminus.transactional.context.config.TransactionalContextAutoconfig

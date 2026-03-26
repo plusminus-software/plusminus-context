@@ -1,4 +1,4 @@
-package software.plusminus.context.http.config;
+package software.plusminus.http.context.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;

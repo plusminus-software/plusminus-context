@@ -1,10 +1,9 @@
-package software.plusminus.context;
+package software.plusminus.transactional.context;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import software.plusminus.context.fixtures.TransactionService;
-import software.plusminus.context.transactional.TransactionalContext;
+import software.plusminus.transactional.context.fixtures.TransactionService;
 
 import java.util.List;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package software.plusminus.context.http;
+package software.plusminus.http.context;
 
 import lombok.AllArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;

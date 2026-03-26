@@ -1,4 +1,4 @@
-package software.plusminus.context.http;
+package software.plusminus.http.context;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
