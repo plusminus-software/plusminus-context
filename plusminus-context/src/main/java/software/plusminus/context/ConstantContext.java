@@ -13,8 +13,4 @@ public class ConstantContext<T> implements Context<T> {
         return value;
     }
 
-    @Override
-    public boolean isInheritable() {
-        return true;
-    }
 }

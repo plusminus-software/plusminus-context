@@ -1,8 +1,11 @@
 package software.plusminus.context;
 
+import lombok.Getter;
+
 public class ThreadLocalContext<T> implements Context<T>, ClearableContext<T> {
 
     private ThreadLocal<T> threadLocal;
+    @Getter
     private boolean inheritable;
 
     public ThreadLocalContext(ThreadLocal<T> threadLocal) {
@@ -16,12 +19,8 @@ public class ThreadLocalContext<T> implements Context<T>, ClearableContext<T> {
     }
 
     @Override
-    public boolean isInheritable() {
-        return inheritable;
-    }
-
-    @Override
     public void clear() {
         threadLocal.remove();
     }
+
 }

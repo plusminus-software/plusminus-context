@@ -11,8 +11,6 @@ public interface Context<T> {
         return Optional.ofNullable(get());
     }
 
-    boolean isInheritable();
-
     static <T> Context<T> constant(T value) {
         return new ConstantContext<>(value);
     }
