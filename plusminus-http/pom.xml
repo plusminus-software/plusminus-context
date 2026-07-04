@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>software.plusminus</groupId>
-        <artifactId>plusminus-context-parent</artifactId>
+        <artifactId>plusminus-context-pom</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>plusminus-http-context</artifactId>
-    <name>Plusminus Http Context</name>
+    <artifactId>plusminus-http</artifactId>
+    <name>Plusminus Http</name>
 
     <dependencies>
         <dependency>

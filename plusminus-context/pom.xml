@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>software.plusminus</groupId>
-        <artifactId>plusminus-context-parent</artifactId>
+        <artifactId>plusminus-context-pom</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 

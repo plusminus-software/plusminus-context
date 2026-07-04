@@ -6,13 +6,13 @@
 
     <parent>
         <groupId>software.plusminus</groupId>
-        <artifactId>plusminus-context-parent</artifactId>
+        <artifactId>plusminus-context-pom</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>plusminus-transactional-context</artifactId>
+    <artifactId>plusminus-transactional</artifactId>
 
-    <name>Plusminus Transaction Context</name>
+    <name>Plusminus Transactional</name>
     <description>Implementation of transaction-scoped context.</description>
 
     <dependencies>

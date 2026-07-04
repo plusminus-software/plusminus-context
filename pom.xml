@@ -11,19 +11,19 @@
         <relativePath/>
     </parent>
 
-    <artifactId>plusminus-context-parent</artifactId>
+    <artifactId>plusminus-context-pom</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Plusminus Context Parent</name>
+    <name>Plusminus Context</name>
     <description>Implementation of a cross-cutting context.</description>
     <url>https://github.com/plusminus-software/plusminus-context</url>
 
     <modules>
         <module>plusminus-context</module>
         <module>plusminus-scope</module>
-        <module>plusminus-http-context</module>
-        <module>plusminus-transactional-context</module>
+        <module>plusminus-http</module>
+        <module>plusminus-transactional</module>
     </modules>
 
     <scm>

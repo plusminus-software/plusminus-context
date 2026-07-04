@@ -95,4 +95,18 @@ class HttpFilterTest {
         check(exceptionType).isEqual(IllegalStateException.class);
         check(exception.getMessage()).is("Test exception");
     }
+
+    @Test
+    void context() {
+        String url = "http://localhost:" + port + "/ok";
+
+        restTemplate.getForObject(url, String.class);
+
+        verify(requestContext).set(any());
+        verify(responseContext).set(any());
+        verify(requestContext).get();
+        verify(responseContext).get();
+        check(requestContext.optional()).isEmpty();
+        check(responseContext.optional()).isEmpty();
+    }
 }

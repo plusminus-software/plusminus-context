@@ -10,7 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @Configuration
-@ComponentScan("software.plusminus.context.http")
+@ComponentScan("software.plusminus.http.context")
 public class HttpContextAutoconfig {
 
     @Bean
