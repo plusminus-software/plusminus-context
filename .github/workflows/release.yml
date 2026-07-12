@@ -1,6 +1,16 @@
 name: Release
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+      && format('Release {0} @ {1} by @{2}', github.ref_name, github.sha, github.actor)
+      || '' }}
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       module:
@@ -10,9 +20,9 @@ on:
         options:
           - ""
           - "plusminus-context"
-          - "plusminus-http-context"
+          - "plusminus-http"
           - "plusminus-scope"
-          - "plusminus-transaction-context"
+          - "plusminus-transactional"
 
 jobs:
   release:
