@@ -1,7 +1,7 @@
 name: Release
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
-      && format('Release {0} @ {1} by @{2}', github.ref_name, github.sha, github.actor)
+      && format('Release {0} @{1}', github.ref_name, github.sha)
       || '' }}
 
 on:
