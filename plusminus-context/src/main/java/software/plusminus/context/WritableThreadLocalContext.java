@@ -19,6 +19,6 @@ public class WritableThreadLocalContext<T> extends ThreadLocalContext<T> impleme
 
     @Override
     public void replace(T value) {
-        threadLocal.set(value);
+        super.replace(value);
     }
 }

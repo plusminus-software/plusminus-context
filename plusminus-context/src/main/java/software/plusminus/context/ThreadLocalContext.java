@@ -23,4 +23,8 @@ public class ThreadLocalContext<T> implements Context<T>, ClearableContext<T> {
         threadLocal.remove();
     }
 
+    void replace(T value) {
+        threadLocal.set(value);
+    }
+
 }
