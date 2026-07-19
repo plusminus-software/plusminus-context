@@ -2,10 +2,12 @@ package software.plusminus.context.propagation;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import software.plusminus.context.WritableContext;
@@ -38,10 +40,38 @@ class ContextPropagationIntegrationTest {
     }
 
     @Test
-    void failsOnDuplicateTaskDecorator() {
+    void wrapsCustomTaskDecoratorWithPropagation() {
         new ApplicationContextRunner()
-                .withUserConfiguration(ContextPropagationAutoconfig.class, CustomDecoratorConfig.class)
+                .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class))
+                .withUserConfiguration(TestConfig.class, CustomDecoratorConfig.class)
+                .run(context -> {
+                    WritableContext<String> customContext = context.getBean(WritableContext.class);
+                    customContext.set("value");
+                    AtomicReference<String> seenByWorker = new AtomicReference<>();
+
+                    Thread thread = new Thread(context.getBean(TaskDecorator.class)
+                            .decorate(() -> seenByWorker.set(customContext.get())));
+                    thread.start();
+                    thread.join();
+
+                    assertThat(seenByWorker.get()).isEqualTo("value");
+                });
+    }
+
+    @Test
+    void failsOnMultipleTaskDecoratorsWithoutPrimary() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class))
+                .withUserConfiguration(CustomDecoratorConfig.class, SecondDecoratorConfig.class)
                 .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void startsOnMultipleTaskDecoratorsWithPrimary() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class))
+                .withUserConfiguration(CustomDecoratorConfig.class, PrimaryDecoratorConfig.class)
+                .run(context -> assertThat(context).hasNotFailed());
     }
 
     @Configuration
@@ -56,6 +86,23 @@ class ContextPropagationIntegrationTest {
     static class CustomDecoratorConfig {
         @Bean
         TaskDecorator customTaskDecorator() {
+            return runnable -> runnable;
+        }
+    }
+
+    @Configuration
+    static class SecondDecoratorConfig {
+        @Bean
+        TaskDecorator secondTaskDecorator() {
+            return runnable -> runnable;
+        }
+    }
+
+    @Configuration
+    static class PrimaryDecoratorConfig {
+        @Bean
+        @Primary
+        TaskDecorator primaryTaskDecorator() {
             return runnable -> runnable;
         }
     }

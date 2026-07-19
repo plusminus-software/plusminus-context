@@ -72,6 +72,21 @@ class ContextPropagationTaskDecoratorTest {
         assertThat(writableContext.get()).isEqualTo("value");
     }
 
+    @Test
+    void composesDelegateDecorator() throws Exception {
+        AtomicReference<String> seenByWorker = new AtomicReference<>();
+        ContextPropagationTaskDecorator composed = new ContextPropagationTaskDecorator(
+                Arrays.asList(writableContext), runnable -> () -> {
+                    seenByWorker.set("delegate:" + writableContext.get());
+                    runnable.run();
+                });
+        writableContext.set("value");
+
+        executor.submit(composed.decorate(() -> { })).get();
+
+        assertThat(seenByWorker.get()).isEqualTo("delegate:value");
+    }
+
     private void runDecorated(Runnable task) throws Exception {
         executor.submit(decorator.decorate(task)).get();
     }

@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-software.plusminus.context.propagation.config.ContextPropagationAutoconfig
+software.plusminus.context.propagation.config.ContextPropagationAutoconfig,\
+software.plusminus.context.propagation.config.ContextPropagationCompositionAutoconfig

@@ -10,15 +10,22 @@ import java.util.stream.Collectors;
 public class ContextPropagationTaskDecorator implements TaskDecorator {
 
     private List<Context<?>> contexts;
+    private TaskDecorator delegate;
 
     public ContextPropagationTaskDecorator(List<Context<?>> contexts) {
+        this(contexts, null);
+    }
+
+    public ContextPropagationTaskDecorator(List<Context<?>> contexts, TaskDecorator delegate) {
         this.contexts = contexts.stream()
                 .filter(ContextPropagationUtil::isPropagatable)
                 .collect(Collectors.toList());
+        this.delegate = delegate;
     }
 
     @Override
     public Runnable decorate(Runnable runnable) {
+        Runnable target = delegate == null ? runnable : delegate.decorate(runnable);
         Object[] captured = contexts.stream()
                 .map(Context::get)
                 .toArray();
@@ -27,7 +34,7 @@ public class ContextPropagationTaskDecorator implements TaskDecorator {
                 ContextPropagationUtil.replace(contexts.get(i), captured[i]);
             }
             try {
-                runnable.run();
+                target.run();
             } finally {
                 contexts.forEach(ContextPropagationUtil::clear);
             }
