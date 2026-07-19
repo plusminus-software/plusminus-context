@@ -43,7 +43,10 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
             populateHandlerContext(handler);
             InvocationStartedEvent<?> event = new InvocationStartedEvent<>(handler);
             eventPublisher.publishEvent(event);
-            return !event.isIntercepted();
+            if (event.isIntercepted()) {
+                eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
+                return false;
+            }
         }
         return true;
     }

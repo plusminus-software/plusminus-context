@@ -26,8 +26,8 @@ on:
 
 jobs:
   release:
-    uses: plusminus-software/plusminus-opensource/.github/workflows/maven-central-release.yml@main
+    uses: plusminus-software/plusminus-workflows/.github/workflows/maven-central-release.yml@main
     with:
       java-version: '8'
-      module: ${{ github.event.inputs.module || '' }}
+      module: ${{ github.event.inputs.module }}
     secrets: inherit

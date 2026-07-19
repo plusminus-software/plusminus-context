@@ -39,6 +39,15 @@ class WritableContextTest {
     }
 
     @Test
+    void setOnSupplierBackedContext() {
+        WritableContext<Integer> integerContext = WritableContext.of(() -> 42);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> integerContext.set(43));
+
+        assertThat(exception.getMessage()).isEqualTo("Context has already been set");
+    }
+
+    @Test
     void optional() {
         WritableContext<Integer> integerContext = WritableContext.of();
 

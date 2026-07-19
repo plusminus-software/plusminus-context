@@ -14,7 +14,8 @@ public interface TransactionalContext<T> {
     ThreadLocal<List<Map<TransactionalContext<?>, Object>>> CONTEXT = ThreadLocal.withInitial(ArrayList::new);
 
     default T get() {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()
+                || !TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("No active transaction");
         }
         List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
@@ -32,13 +33,19 @@ public interface TransactionalContext<T> {
     }
 
     static void onNewTransaction() {
-        CONTEXT.get().add(new HashMap<>());
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
-                transactions.remove(transactions.size() - 1);
-            }
-        });
+        List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
+        transactions.add(new HashMap<>());
+        try {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    List<Map<TransactionalContext<?>, Object>> current = CONTEXT.get();
+                    current.remove(current.size() - 1);
+                }
+            });
+        } catch (RuntimeException e) {
+            transactions.remove(transactions.size() - 1);
+            throw e;
+        }
     }
 }

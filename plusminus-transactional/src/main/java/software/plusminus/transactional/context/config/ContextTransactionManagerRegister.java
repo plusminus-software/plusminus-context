@@ -12,7 +12,7 @@ public class ContextTransactionManagerRegister implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (bean instanceof PlatformTransactionManager && !(bean instanceof ContextTransactionManagerRegister)) {
+        if (bean instanceof PlatformTransactionManager && !(bean instanceof ContextTransactionManager)) {
             return new ContextTransactionManager((PlatformTransactionManager) bean);
         }
         return bean;

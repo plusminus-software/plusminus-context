@@ -16,7 +16,7 @@ public interface Context<T> {
     }
 
     static <T> Context<T> of(T initialValue) {
-        return of(initialValue, true);
+        return of(initialValue, false);
     }
 
     static <T> Context<T> of(T initialValue, boolean inheritable) {
@@ -24,7 +24,7 @@ public interface Context<T> {
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
-        return of(supplier, true);
+        return of(supplier, false);
     }
 
     static <T> Context<T> of(Supplier<T> supplier, boolean inheritable) {

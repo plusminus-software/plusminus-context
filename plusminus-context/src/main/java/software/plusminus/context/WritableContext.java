@@ -9,7 +9,7 @@ public interface WritableContext<T> extends Context<T> {
     void replace(T value);
 
     static <T> WritableContext<T> of() {
-        return of(true);
+        return of(false);
     }
 
     static <T> WritableContext<T> of(boolean inheritable) {
@@ -18,7 +18,7 @@ public interface WritableContext<T> extends Context<T> {
     }
 
     static <T> WritableContext<T> of(T initialValue) {
-        return of(initialValue, true);
+        return of(initialValue, false);
     }
 
     static <T> WritableContext<T> of(T initialValue, boolean inheritable) {
@@ -26,7 +26,7 @@ public interface WritableContext<T> extends Context<T> {
     }
 
     static <T> WritableContext<T> of(Supplier<T> supplier) {
-        return of(supplier, true);
+        return of(supplier, false);
     }
 
     static <T> WritableContext<T> of(Supplier<T> supplier, boolean inheritable) {
