@@ -18,6 +18,7 @@ public class ScopeRunner {
     private List<AroundScope> arounds;
 
     @SafeVarargs
+    @SuppressWarnings("PMD.AvoidCatchingThrowable")
     public final void run(Object source, ThrowingRunnable scope,
                           Class<? extends Exception>... exceptionsToExtract) {
 
@@ -25,10 +26,12 @@ public class ScopeRunner {
         try {
             AroundScope.around(arounds, source, scope.asRunnable()).run();
             eventPublisher.publishEvent(new ScopeCompletedEvent());
-        } catch (Exception e) {
-            Exception extractedException = ExceptionExtractor.extract(e, exceptionsToExtract);
-            eventPublisher.publishEvent(new ScopeFailedEvent<>(extractedException));
-            throw e;
+        } catch (Throwable t) {
+            Exception failure = t instanceof Exception
+                    ? ExceptionExtractor.extract((Exception) t, exceptionsToExtract)
+                    : new RuntimeException(t);
+            eventPublisher.publishEvent(new ScopeFailedEvent<>(failure));
+            throw t;
         } finally {
             eventPublisher.publishEvent(new ScopeFinalizedEvent());
         }

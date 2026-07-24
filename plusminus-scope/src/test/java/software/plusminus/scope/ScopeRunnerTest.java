@@ -54,6 +54,15 @@ class ScopeRunnerTest {
     }
 
     @Test
+    void error() {
+        AssertionError error = assertThrows(AssertionError.class, () -> scopeRunner.run(this, () -> {
+            throw new AssertionError("Test error");
+        }));
+        check(error.getMessage()).is("Test error");
+        check(testListener.calls()).is("started", "failed", "finalized");
+    }
+
+    @Test
     void around() {
         Runnable runnable = mock(Runnable.class);
         ThrowingRunnable throwingRunnable = ThrowingRunnable.of(runnable);

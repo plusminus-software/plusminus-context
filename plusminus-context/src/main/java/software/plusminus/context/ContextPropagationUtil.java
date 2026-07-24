@@ -9,10 +9,12 @@ public class ContextPropagationUtil {
         return !(context instanceof ConstantContext);
     }
 
-    public <T> void replace(Context<T> context, Object value) {
+    public <T> boolean replace(Context<T> context, Object value) {
         if (context instanceof ThreadLocalContext) {
             ((ThreadLocalContext<T>) context).replace((T) value);
+            return true;
         }
+        return false;
     }
 
     public void clear(Context<?> context) {

@@ -15,13 +15,20 @@ class ExceptionExtractorTest {
     @Test
     void returnsSameExceptionWhenTypeNotListed() {
         Exception e = new IllegalStateException(new IllegalArgumentException());
-        assertThat(ExceptionExtractor.extract(e, RuntimeException.class)).isSameAs(e);
+        assertThat(ExceptionExtractor.extract(e, NumberFormatException.class)).isSameAs(e);
     }
 
     @Test
     void extractsCauseWhenTypeMatches() {
         Exception cause = new IllegalArgumentException();
         Exception e = new IllegalStateException(cause);
+        assertThat(ExceptionExtractor.extract(e, IllegalStateException.class)).isSameAs(cause);
+    }
+
+    @Test
+    void extractsCauseWhenExceptionIsSubclassOfRequestedType() {
+        Exception cause = new IllegalArgumentException();
+        Exception e = new SubStateException(cause);
         assertThat(ExceptionExtractor.extract(e, IllegalStateException.class)).isSameAs(cause);
     }
 
@@ -43,5 +50,11 @@ class ExceptionExtractorTest {
     void returnsSameExceptionWhenCauseIsNotException() {
         Exception e = new IllegalStateException(new StackOverflowError());
         assertThat(ExceptionExtractor.extract(e, IllegalStateException.class)).isSameAs(e);
+    }
+
+    private static class SubStateException extends IllegalStateException {
+        SubStateException(Throwable cause) {
+            super(cause);
+        }
     }
 }

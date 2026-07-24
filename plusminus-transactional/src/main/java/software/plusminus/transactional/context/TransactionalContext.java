@@ -32,19 +32,34 @@ public interface TransactionalContext<T> {
         return new SimpleTransactionalContext<>(provider);
     }
 
+    @SuppressWarnings("PMD.CompareObjectsWithEquals")
     static void onNewTransaction() {
         List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
-        transactions.add(new HashMap<>());
+        Map<TransactionalContext<?>, Object> transaction = new HashMap<>();
+        transactions.add(transaction);
         try {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
                     List<Map<TransactionalContext<?>, Object>> current = CONTEXT.get();
-                    current.remove(current.size() - 1);
+                    // Remove exactly the frame this synchronization owns (by identity), so an
+                    // out-of-order completion cannot pop a sibling transaction's frame.
+                    for (int i = current.size() - 1; i >= 0; i--) {
+                        if (current.get(i) == transaction) {
+                            current.remove(i);
+                            break;
+                        }
+                    }
+                    if (current.isEmpty()) {
+                        CONTEXT.remove();
+                    }
                 }
             });
         } catch (RuntimeException e) {
             transactions.remove(transactions.size() - 1);
+            if (transactions.isEmpty()) {
+                CONTEXT.remove();
+            }
             throw e;
         }
     }

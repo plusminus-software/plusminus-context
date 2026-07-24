@@ -4,6 +4,7 @@ import org.springframework.core.task.TaskDecorator;
 import software.plusminus.context.Context;
 import software.plusminus.context.ContextPropagationUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,13 +31,17 @@ public class ContextPropagationTaskDecorator implements TaskDecorator {
                 .map(Context::get)
                 .toArray();
         return () -> {
+            List<Context<?>> propagated = new ArrayList<>();
             for (int i = 0; i < captured.length; i++) {
-                ContextPropagationUtil.replace(contexts.get(i), captured[i]);
+                Context<?> context = contexts.get(i);
+                if (ContextPropagationUtil.replace(context, captured[i])) {
+                    propagated.add(context);
+                }
             }
             try {
                 target.run();
             } finally {
-                contexts.forEach(ContextPropagationUtil::clear);
+                propagated.forEach(ContextPropagationUtil::clear);
             }
         };
     }

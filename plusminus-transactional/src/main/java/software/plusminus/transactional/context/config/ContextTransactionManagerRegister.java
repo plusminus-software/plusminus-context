@@ -5,6 +5,7 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.CallbackPreferringPlatformTransactionManager;
 
 @Component
 @ConditionalOnClass(PlatformTransactionManager.class)
@@ -12,7 +13,9 @@ public class ContextTransactionManagerRegister implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (bean instanceof PlatformTransactionManager && !(bean instanceof ContextTransactionManager)) {
+        if (bean instanceof PlatformTransactionManager
+                && !(bean instanceof ContextTransactionManager)
+                && !(bean instanceof CallbackPreferringPlatformTransactionManager)) {
             return new ContextTransactionManager((PlatformTransactionManager) bean);
         }
         return bean;

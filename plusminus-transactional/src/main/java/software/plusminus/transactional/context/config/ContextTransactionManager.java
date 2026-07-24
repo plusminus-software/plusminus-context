@@ -6,10 +6,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionException;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.ResourceTransactionManager;
 import software.plusminus.transactional.context.TransactionalContext;
 
 @AllArgsConstructor
-public class ContextTransactionManager implements PlatformTransactionManager {
+public class ContextTransactionManager implements ResourceTransactionManager {
 
     private PlatformTransactionManager delegate;
 
@@ -30,5 +31,14 @@ public class ContextTransactionManager implements PlatformTransactionManager {
     @Override
     public void rollback(TransactionStatus status) throws TransactionException {
         delegate.rollback(status);
+    }
+
+    @Override
+    public Object getResourceFactory() {
+        if (delegate instanceof ResourceTransactionManager) {
+            return ((ResourceTransactionManager) delegate).getResourceFactory();
+        }
+        throw new IllegalStateException("Wrapped transaction manager "
+                + delegate.getClass().getName() + " is not a ResourceTransactionManager");
     }
 }

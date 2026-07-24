@@ -14,7 +14,7 @@ public class ExceptionExtractor {
             return e;
         }
         boolean shouldExtract = Stream.of(exceptionsToExtract)
-                .anyMatch(type -> e.getClass() == type);
+                .anyMatch(type -> type.isInstance(e));
         if (shouldExtract) {
             Exception extracted = extract(e);
             if (extracted != null) {
