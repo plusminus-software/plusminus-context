@@ -4,7 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.HandlerMethod;
-import software.plusminus.context.WritableContext;
+import software.plusminus.context.Context;
+import software.plusminus.http.context.HttpInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -14,22 +15,22 @@ import javax.servlet.http.HttpServletResponse;
 public class HttpContextAutoconfig {
 
     @Bean
-    WritableContext<HttpServletRequest> httpServletRequestContext() {
-        return WritableContext.of();
+    Context<HttpServletRequest> httpServletRequestContext() {
+        return Context.local();
     }
 
     @Bean
-    WritableContext<HttpServletResponse> httpServletResponseContext() {
-        return WritableContext.of();
+    Context<HttpServletResponse> httpServletResponseContext() {
+        return Context.local();
     }
 
     @Bean
-    WritableContext<HandlerMethod> handlerMethodContext() {
-        return WritableContext.of();
+    Context<Object> handlerContext(Context<HttpServletRequest> httpServletRequestContext) {
+        return httpServletRequestContext.map(request -> request.getAttribute(HttpInterceptor.HANDLER));
     }
 
     @Bean
-    WritableContext<Object> handlerContext() {
-        return WritableContext.of();
+    Context<HandlerMethod> handlerMethodContext(Context<Object> handlerContext) {
+        return handlerContext.map(handler -> handler instanceof HandlerMethod ? (HandlerMethod) handler : null);
     }
 }

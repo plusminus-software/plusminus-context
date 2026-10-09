@@ -12,7 +12,6 @@ import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.method.HandlerMethod;
-import software.plusminus.context.WritableContext;
 import software.plusminus.http.context.fixtures.TestInvocationListener;
 import software.plusminus.scope.events.InvocationCompletedEvent;
 import software.plusminus.scope.events.InvocationFailedEvent;
@@ -21,7 +20,6 @@ import software.plusminus.scope.events.InvocationStartedEvent;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
@@ -36,8 +34,6 @@ class HttpInterceptorTest {
     private int port;
 
     @SpyBean
-    private WritableContext<HandlerMethod> handlerMethodContext;
-    @SpyBean
     private TestInvocationListener listener;
 
     @Autowired
@@ -45,16 +41,6 @@ class HttpInterceptorTest {
 
     @Captor
     private ArgumentCaptor<InvocationFailedEvent<HandlerMethod, ?>> failedEventCaptor;
-
-    @Test
-    void writableContext() {
-        String url = "http://localhost:" + port + "/ok";
-
-        String response = restTemplate.getForObject(url, String.class);
-
-        assertThat(response).isEqualTo("ok");
-        verify(handlerMethodContext).set(any(HandlerMethod.class));
-    }
 
     @Test
     void ok() {
