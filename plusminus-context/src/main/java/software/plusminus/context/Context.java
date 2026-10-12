@@ -12,9 +12,9 @@ public interface Context<T> {
     T get();
 
     default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
-        return () -> Optional.of(get())
+        return new DirectContext<>(() -> Optional.of(get())
                 .map(mapper)
-                .orElseThrow(() -> new NoSuchElementException("No value in context"));
+                .orElseThrow(() -> new NoSuchElementException("No value in context")));
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
@@ -22,7 +22,7 @@ public interface Context<T> {
     }
 
     static <T> Context<T> of(T value) {
-        return new ConstantContext<>(value);
+        return new DirectContext<>(() -> value);
     }
 
     static <T> Context<T> of() {

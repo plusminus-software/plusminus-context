@@ -145,6 +145,8 @@ class ContextTest {
         Context.where(context, "value").run(() -> {
             assertThat(mapped.get()).isEqualTo("value1");
             assertThat(mapped.get()).isEqualTo("value2");
+            Context.where(mapped, "bound")
+                    .run(() -> assertThat(mapped.get()).isEqualTo("bound"));
         });
     }
 
