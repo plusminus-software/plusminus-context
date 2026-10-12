@@ -11,7 +11,7 @@ public final class ScopedContext<T> implements Context<T> {
     private final Supplier<T> supplier;
 
     @Override
-    public T provide() {
+    public T supply() {
         return Scope.getSavedValue(this, supplier);
     }
 }

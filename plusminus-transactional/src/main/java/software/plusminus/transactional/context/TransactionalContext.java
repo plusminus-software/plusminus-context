@@ -19,7 +19,7 @@ public final class TransactionalContext<T> implements Context<T> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public T provide() {
+    public T supply() {
         if (!TransactionSynchronizationManager.isSynchronizationActive()
                 || !TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("No active transaction");

@@ -9,12 +9,12 @@ import java.util.function.Supplier;
 @FunctionalInterface
 public interface Context<T> {
 
-    T provide();
+    T supply();
 
     default T get() {
         T value = Scope.getBoundValue(this);
         if (value == null) {
-            value = provide();
+            value = supply();
         }
         if (value == null) {
             throw new NoSuchElementException("No value in context");
