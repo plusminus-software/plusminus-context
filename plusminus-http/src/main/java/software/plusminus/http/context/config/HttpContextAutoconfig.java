@@ -16,12 +16,12 @@ public class HttpContextAutoconfig {
 
     @Bean
     Context<HttpServletRequest> httpServletRequestContext() {
-        return Context.local();
+        return Context.of();
     }
 
     @Bean
     Context<HttpServletResponse> httpServletResponseContext() {
-        return Context.local();
+        return Context.of();
     }
 
     @Bean

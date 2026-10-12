@@ -40,8 +40,8 @@ public class HttpFilter extends OncePerRequestFilter {
         Runnable body = request.getDispatcherType() == DispatcherType.REQUEST
                 ? () -> scopeRunner.run(this, chain, NestedServletException.class)
                 : chain.asRunnable();
-        Context.where(httpServletRequestContext, () -> request)
-                .where(httpServletResponseContext, () -> response)
+        Context.where(httpServletRequestContext, request)
+                .where(httpServletResponseContext, response)
                 .run(body);
     }
 }

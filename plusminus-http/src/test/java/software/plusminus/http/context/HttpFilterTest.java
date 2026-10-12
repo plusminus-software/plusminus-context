@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -90,7 +91,7 @@ class HttpFilterTest {
 
         check(response.getBody()).is("/context context");
         check(response.getHeaders().getFirst("handler")).is("HandlerMethod");
-        check(requestContext.optional()).isEmpty();
+        assertThrows(IllegalStateException.class, requestContext::get);
     }
 
     @Test

@@ -2,8 +2,6 @@ package software.plusminus.context;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,52 +12,52 @@ class ContextTest {
     private Context<String> context = Context.of();
 
     @Test
+    void getFailsOutsideScope() {
+        IllegalStateException exception = assertThrows(IllegalStateException.class, context::get);
+
+        assertThat(exception.getMessage()).isEqualTo("Scope is not initialized");
+    }
+
+    @Test
     void getFailsWhenNotBound() {
-        NoSuchElementException exception = assertThrows(NoSuchElementException.class, context::get);
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> Context.run(context::get));
 
         assertThat(exception.getMessage()).isEqualTo("Context is not bound");
     }
 
     @Test
-    void optionalIsEmptyWhenNotBound() {
-        assertThat(context.optional()).isEmpty();
-    }
-
-    @Test
     void runBindsValue() {
-        Context.where(context, () -> "value").run(() -> {
-            assertThat(context.get()).isEqualTo("value");
-            assertThat(context.optional()).contains("value");
-        });
+        Context.where(context, "value").run(() -> assertThat(context.get()).isEqualTo("value"));
     }
 
     @Test
     void runRestoresPreviousValue() {
-        Context.where(context, () -> "outer").run(() -> {
-            Context.where(context, () -> "inner").run(() -> assertThat(context.get()).isEqualTo("inner"));
+        Context.where(context, "outer").run(() -> {
+            Context.where(context, "inner").run(() -> assertThat(context.get()).isEqualTo("inner"));
             assertThat(context.get()).isEqualTo("outer");
         });
 
-        assertThat(context.optional()).isEmpty();
+        assertThrows(IllegalStateException.class, context::get);
     }
 
     @Test
     void runRestoresPreviousValueOnException() {
-        ContextBindings bindings = Context.where(context, () -> "value");
+        ContextBindings bindings = Context.where(context, "value");
 
-        assertThrows(IllegalStateException.class, () -> bindings.run(() -> {
-            throw new IllegalStateException();
+        assertThrows(UnsupportedOperationException.class, () -> bindings.run(() -> {
+            throw new UnsupportedOperationException();
         }));
 
-        assertThat(context.optional()).isEmpty();
+        assertThrows(IllegalStateException.class, context::get);
     }
 
     @Test
     void innerRunKeepsOuterBindings() {
         Context<Integer> second = Context.of();
 
-        Context.where(context, () -> "value").run(() ->
-                Context.where(second, () -> 42).run(() -> {
+        Context.where(context, "value").run(() ->
+                Context.where(second, 42).run(() -> {
                     assertThat(context.get()).isEqualTo("value");
                     assertThat(second.get()).isEqualTo(42);
                 }));
@@ -67,81 +65,95 @@ class ContextTest {
 
     @Test
     void whereBindsSeveralContexts() {
-        Context<Integer> second = Context.local();
+        Context<Integer> second = Context.of();
 
-        String result = Context.where(context, () -> "value")
-                .where(second, () -> 42)
+        String result = Context.where(context, "value")
+                .where(second, 42)
                 .call(() -> context.get() + second.get());
 
         assertThat(result).isEqualTo("value42");
     }
 
     @Test
-    void callThrowsCheckedException() {
-        ContextBindings bindings = Context.where(context, () -> "value");
+    void whereReplacesOwnValue() {
+        Context<String> constant = Context.of("value");
 
-        assertThrows(IOException.class, () -> bindings.call(() -> {
-            throw new IOException();
-        }));
+        Context.where(constant, "other").run(() -> assertThat(constant.get()).isEqualTo("other"));
+
+        assertThat(Context.call(constant::get)).isEqualTo("value");
     }
 
     @Test
     void whereFailsOnContextThatCannotBeBound() {
-        Context<String> constant = Context.constant("value");
+        Context<String> lambda = () -> "value";
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> Context.where(constant, () -> "other"));
+                () -> Context.where(lambda, "other"));
 
         assertThat(exception.getMessage()).isEqualTo("Context cannot be bound");
     }
 
     @Test
-    void supplierIsCalledOncePerRun() {
+    void whereFailsOnNullValue() {
+        assertThrows(NullPointerException.class, () -> Context.where(context, null));
+    }
+
+    @Test
+    void supplierIsCalledOncePerScope() {
         AtomicInteger calls = new AtomicInteger();
-        ContextBindings bindings = Context.where(context, () -> "value" + calls.incrementAndGet());
+        Context<Integer> counter = Context.of(calls::incrementAndGet);
 
-        bindings.run(() -> { });
-        assertThat(calls.get()).isZero();
-        bindings.run(() -> {
-            assertThat(context.get()).isEqualTo("value1");
-            assertThat(context.get()).isEqualTo("value1");
+        Context.run(() -> {
+            assertThat(counter.get()).isEqualTo(1);
+            assertThat(counter.get()).isEqualTo(1);
+            Context.run(() -> assertThat(counter.get()).isEqualTo(2));
+            assertThat(counter.get()).isEqualTo(1);
         });
-        bindings.run(() -> assertThat(context.get()).isEqualTo("value2"));
     }
 
     @Test
-    void whereAfterWhere() {
-        Context<Integer> second = Context.of();
+    void innerScopeDoesNotSaveValueInOuterScope() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<Integer> counter = Context.of(calls::incrementAndGet);
 
-        Context.where(context, () -> "value")
-                .where(second, () -> context.get().length())
-                .run(() -> assertThat(second.get()).isEqualTo(5));
+        Context.run(() -> {
+            Context.run(() -> assertThat(counter.get()).isEqualTo(1));
+            assertThat(counter.get()).isEqualTo(2);
+        });
     }
 
     @Test
-    void supplierMayReturnNull() {
-        Context.where(context, () -> null).run(() -> assertThat(context.optional()).isEmpty());
+    void supplierReadsOtherContext() {
+        Context<Integer> length = Context.of(() -> context.get().length());
+
+        Context.where(context, "value").run(() -> assertThat(length.get()).isEqualTo(5));
     }
 
     @Test
-    void constant() {
-        assertThat(Context.constant("42").get()).isEqualTo("42");
+    void nullFromSupplierIsNotSaved() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<String> nullContext = Context.of(() -> {
+            calls.incrementAndGet();
+            return null;
+        });
+
+        Context.run(() -> {
+            assertThat(nullContext.get()).isNull();
+            assertThat(nullContext.get()).isNull();
+        });
+        assertThat(calls.get()).isEqualTo(2);
     }
 
     @Test
-    void supplier() {
-        Context<Integer> integerContext = Context.of(() -> 42);
-        Context<String> nullContext = Context.of(() -> null);
+    void mapIsCalledOncePerScope() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<String> mapped = context.map(value -> value + calls.incrementAndGet());
 
-        assertThat(integerContext.get()).isEqualTo(42);
-        assertThat(nullContext.optional()).isEmpty();
-    }
-
-    @Test
-    void map() {
-        Context<Integer> length = context.map(String::length);
-
-        assertThat(length.optional()).isEmpty();
-        Context.where(context, () -> "value").run(() -> assertThat(length.get()).isEqualTo(5));
+        Context.where(context, "value").run(() -> {
+            assertThat(mapped.get()).isEqualTo("value1");
+            assertThat(mapped.get()).isEqualTo("value1");
+            Context.where(context, "other").run(() -> assertThat(mapped.get()).isEqualTo("other2"));
+            Context.where(mapped, "bound").run(() -> assertThat(mapped.get()).isEqualTo("bound"));
+        });
     }
 }

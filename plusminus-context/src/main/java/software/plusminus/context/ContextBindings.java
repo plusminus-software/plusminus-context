@@ -5,19 +5,20 @@ import lombok.AllArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 public final class ContextBindings {
 
-    private final Map<ScopedContext<?>, Supplier<?>> suppliers;
+    private final Map<Context<?>, Object> values;
 
-    public <T> ContextBindings where(Context<T> context, Supplier<? extends T> supplier) {
+    public <T> ContextBindings where(Context<T> context, T value) {
         if (!(context instanceof ScopedContext)) {
             throw new IllegalArgumentException("Context cannot be bound");
         }
-        Map<ScopedContext<?>, Supplier<?>> result = new HashMap<>(suppliers);
-        result.put((ScopedContext<?>) context, supplier);
+        Map<Context<?>, Object> result = new HashMap<>(values);
+        result.put(context, Objects.requireNonNull(value));
         return new ContextBindings(result);
     }
 
@@ -28,9 +29,9 @@ public final class ContextBindings {
         });
     }
 
-    public <R, X extends Throwable> R call(Call<R, X> body) throws X {
-        Map<ScopedContext<?>, Lazy<?>> values = new HashMap<>(ScopedContext.values());
-        suppliers.forEach((context, supplier) -> values.put(context, new Lazy<>(supplier)));
-        return ScopedContext.call(values, body);
+    public <R> R call(Supplier<R> body) {
+        try (Scope ignored = Scope.open(values)) {
+            return body.get();
+        }
     }
 }

@@ -6,7 +6,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import software.plusminus.transactional.context.fixtures.TransactionService;
 
-import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -76,7 +75,7 @@ class TransactionalContextIntegrationTest {
         transactionService.inTransaction(() -> {
             TransactionSynchronizationManager.clearSynchronization();
             try {
-                check(transactionalContext.optional()).isEmpty();
+                assertThrows(IllegalStateException.class, () -> transactionalContext.get());
             } finally {
                 TransactionSynchronizationManager.initSynchronization();
             }
@@ -94,7 +93,7 @@ class TransactionalContextIntegrationTest {
     void nullValue() {
         TransactionalContext<String> nullContext = TransactionalContext.of(() -> null);
 
-        transactionService.inTransaction(() -> check(nullContext.optional()).isEmpty());
+        transactionService.inTransaction(() -> check(nullContext.get()).isNull());
     }
 
     private void checkContext(int transactionLevel) {
@@ -102,8 +101,9 @@ class TransactionalContextIntegrationTest {
     }
 
     private void checkContextOutsideTransaction() {
-        check(transactionalContext.optional()).isEmpty();
-        assertThrows(NoSuchElementException.class, () -> transactionalContext.get());
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> transactionalContext.get());
+        check(exception.getMessage()).is("No active transaction");
         check(TransactionSynchronizationManager.hasResource(transactionalContext)).is(false);
     }
 }

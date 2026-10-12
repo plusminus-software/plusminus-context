@@ -27,7 +27,8 @@ class ContextPropagationTaskDecoratorTest {
 
         Runnable task = () -> seenByWorker.set(context.get());
 
-        Context.where(context, () -> "value").run(() -> submit(decorator.decorate(task)));
+        Context.where(context, "value")
+                .run(() -> submit(decorator.decorate(task)));
 
         assertThat(seenByWorker.get()).isEqualTo("value");
     }
@@ -39,7 +40,8 @@ class ContextPropagationTaskDecoratorTest {
             task.run();
         });
 
-        Context.where(context, () -> "value").run(() -> submit(decorator.decorate(() -> { })));
+        Context.where(context, "value")
+                .run(() -> submit(decorator.decorate(() -> { })));
 
         assertThat(seenByWorker.get()).isEqualTo("delegate:value");
     }

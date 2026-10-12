@@ -24,15 +24,13 @@ Create a context, bind a value for a block of code and read it anywhere inside:
 ```java
 Context<User> user = Context.of();
 
-Context.where(user, () -> currentUser).run(() -> {
+Context.where(user, currentUser).run(() -> {
     User value = user.get();
 });
 
-user.optional(); // empty outside of the block
-user.get();      // throws NoSuchElementException outside of the block
+user.get(); // throws IllegalStateException outside of the block
 ```
 
-`Context.local()` creates a context that is not copied to other threads.
 To run a task in another thread with the current values:
 
 ```java

@@ -18,8 +18,8 @@ class ContextIntegrationTest {
 
     @Test
     void get() {
-        assertThat(stringContext.optional()).isEmpty();
-        Context.where(integerContext, () -> 42).run(() -> assertThat(stringContext.get()).isEqualTo("42"));
+        Context.where(integerContext, 42)
+                .run(() -> assertThat(stringContext.get()).isEqualTo("42"));
     }
 
     @Configuration

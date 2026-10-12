@@ -1,26 +1,29 @@
 package software.plusminus.context;
 
-import java.util.HashMap;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+@AllArgsConstructor(access = AccessLevel.PACKAGE)
 public final class Snapshot {
 
-    private final Map<ScopedContext<?>, Lazy<?>> values;
-
-    Snapshot(Map<ScopedContext<?>, Lazy<?>> values) {
-        this.values = new HashMap<>(values);
-        this.values.keySet().removeIf(ScopedContext::isLocal);
-    }
+    private final Map<Context<?>, Object> values;
 
     public Runnable wrap(Runnable task) {
-        return () -> ScopedContext.call(values, () -> {
-            task.run();
-            return null;
-        });
+        return () -> {
+            try (Scope ignored = Scope.open(values)) {
+                task.run();
+            }
+        };
     }
 
     public <V> Callable<V> wrap(Callable<V> task) {
-        return () -> ScopedContext.call(values, task::call);
+        return () -> {
+            try (Scope ignored = Scope.open(values)) {
+                return task.call();
+            }
+        };
     }
 }

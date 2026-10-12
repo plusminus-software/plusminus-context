@@ -1,45 +1,49 @@
 package software.plusminus.context;
 
 import java.util.Collections;
-import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 @FunctionalInterface
 public interface Context<T> {
 
-    Optional<T> optional();
-
-    default T get() {
-        return optional().orElseThrow(() -> new NoSuchElementException("Context is not bound"));
-    }
+    T get();
 
     default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
-        return () -> optional().map(mapper);
-    }
-
-    static <T> Context<T> of() {
-        return new ScopedContext<>(false);
+        return new ScopedContext<>(() -> mapper.apply(get()));
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
-        return () -> Optional.ofNullable(supplier.get());
+        return new ScopedContext<>(supplier);
     }
 
-    static <T> Context<T> local() {
-        return new ScopedContext<>(true);
+    static <T> Context<T> of(T value) {
+        return new ScopedContext<>(() -> value);
     }
 
-    static <T> Context<T> constant(T value) {
-        return () -> Optional.ofNullable(value);
+    static <T> Context<T> of() {
+        return new ScopedContext<>(() -> {
+            throw new IllegalStateException("Context is not bound");
+        });
     }
 
-    static <T> ContextBindings where(Context<T> context, Supplier<? extends T> supplier) {
-        return new ContextBindings(Collections.emptyMap()).where(context, supplier);
+    static <T> ContextBindings where(Context<T> context, T value) {
+        return new ContextBindings(Collections.emptyMap()).where(context, value);
+    }
+
+    static void run(Runnable body) {
+        new ContextBindings(Collections.emptyMap()).run(body);
+    }
+
+    static <R> R call(Supplier<R> body) {
+        return new ContextBindings(Collections.emptyMap()).call(body);
     }
 
     static Snapshot snapshot() {
-        return new Snapshot(ScopedContext.values());
+        return snapshot(false);
+    }
+
+    static Snapshot snapshot(boolean includeSaves) {
+        return Scope.snapshot(includeSaves);
     }
 }
