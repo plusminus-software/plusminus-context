@@ -2,6 +2,7 @@ package software.plusminus.context;
 
 import lombok.AllArgsConstructor;
 
+import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
 @AllArgsConstructor
@@ -12,6 +13,12 @@ final class DirectContext<T> implements Context<T> {
     @Override
     public T get() {
         T value = Scope.getBoundValue(this);
-        return value == null ? supplier.get() : value;
+        if (value == null) {
+            value = supplier.get();
+        }
+        if (value == null) {
+            throw new NoSuchElementException("No value in context");
+        }
+        return value;
     }
 }

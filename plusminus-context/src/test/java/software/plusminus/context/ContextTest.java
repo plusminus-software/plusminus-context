@@ -85,6 +85,13 @@ class ContextTest {
     }
 
     @Test
+    void ofFailsOnNullValue() {
+        String value = null;
+
+        assertThrows(NullPointerException.class, () -> Context.of(value));
+    }
+
+    @Test
     void constantWorksOutsideScope() {
         Context<String> constant = Context.of("value");
 
