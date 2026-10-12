@@ -82,7 +82,7 @@ block does not reuse it and calls the supplier again.
 | Case | Exception |
 | --- | --- |
 | `Context.of()` or `Context.of(supplier)` is read when no block is open | `IllegalStateException("No active scope")` |
-| A transactional context is read without a transaction and without a bound value | `IllegalStateException("No active transaction")` |
+| A transactional context is read outside a transaction | `IllegalStateException("No active transaction")` |
 | Nothing is bound and there is no own value (the supplier, mapper or `supply()` returns `null`) | `NoSuchElementException("No value in context")` |
 | `Context.of(null)` or `where(context, null)` | `NullPointerException` |
 
@@ -127,8 +127,10 @@ UUID current = transactionId.get(); // throws IllegalStateException("No active t
 ```
 
 An inner transaction started with `REQUIRES_NEW` gets its own value, and the
-outer value is back when it ends. A transactional context does not need a block,
-and a value bound with `where` replaces the transaction value inside the block.
+outer value is back when it ends. A transactional context does not need a block
+but always needs a transaction: a value bound with `where` replaces the
+transaction value inside the block, and reading it outside a transaction still
+throws.
 
 ### HTTP contexts
 

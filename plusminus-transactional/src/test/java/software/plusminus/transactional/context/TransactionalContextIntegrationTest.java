@@ -45,6 +45,12 @@ class TransactionalContextIntegrationTest {
     }
 
     @Test
+    void whereDoesNotWorkOutsideTransaction() {
+        Context.where(transactionalContext, "bound")
+                .run(this::checkContextOutsideTransaction);
+    }
+
+    @Test
     void joinedTransactions() {
         transactionService.inTransaction(() -> {
             checkContext(1);

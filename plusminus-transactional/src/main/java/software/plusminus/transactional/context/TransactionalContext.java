@@ -18,12 +18,17 @@ public final class TransactionalContext<T> implements Context<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public T supply() {
+    public T get() {
         if (!TransactionSynchronizationManager.isSynchronizationActive()
                 || !TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("No active transaction");
         }
+        return Context.super.get();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public T supply() {
         T value = (T) TransactionSynchronizationManager.getResource(this);
         if (value == null) {
             value = supplier.get();
