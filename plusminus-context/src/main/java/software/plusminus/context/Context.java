@@ -1,6 +1,7 @@
 package software.plusminus.context;
 
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -8,10 +9,21 @@ import java.util.function.Supplier;
 @FunctionalInterface
 public interface Context<T> {
 
-    T get();
+    T provide();
+
+    default T get() {
+        T value = Scope.getBoundValue(this);
+        if (value == null) {
+            value = provide();
+        }
+        if (value == null) {
+            throw new NoSuchElementException("No value in context");
+        }
+        return value;
+    }
 
     default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
-        return new DirectContext<>(() -> mapper.apply(get()));
+        return () -> mapper.apply(get());
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
@@ -20,7 +32,7 @@ public interface Context<T> {
 
     static <T> Context<T> of(T value) {
         Objects.requireNonNull(value);
-        return new DirectContext<>(() -> value);
+        return () -> value;
     }
 
     static <T> Context<T> of() {

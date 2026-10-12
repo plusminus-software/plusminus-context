@@ -1,22 +1,17 @@
 package software.plusminus.context;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+
 import java.util.function.Supplier;
 
-public class ScopedContext<T> implements Context<T> {
+@AllArgsConstructor(access = AccessLevel.PACKAGE)
+public final class ScopedContext<T> implements Context<T> {
 
     private final Supplier<T> supplier;
 
-    ScopedContext(Supplier<T> supplier) {
-        this.supplier = supplier;
-    }
-
     @Override
-    public T get() {
-        T value = Scope.getBoundValue(this);
-        if (value != null) {
-            return value;
-        }
-        value = Scope.getSavedValue(this, supplier);
-        return value;
+    public T provide() {
+        return Scope.getSavedValue(this, supplier);
     }
 }

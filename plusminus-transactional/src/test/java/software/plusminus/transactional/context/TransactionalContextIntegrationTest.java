@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import software.plusminus.context.Context;
 import software.plusminus.transactional.context.fixtures.TransactionService;
 
 import java.util.NoSuchElementException;
@@ -32,6 +33,15 @@ class TransactionalContextIntegrationTest {
     void singleTransaction() {
         transactionService.inTransaction(() -> checkContext(1));
         checkContextOutsideTransaction();
+    }
+
+    @Test
+    void whereReplacesTransactionValue() {
+        transactionService.inTransaction(() -> {
+            Context.where(transactionalContext, "bound")
+                    .run(() -> check(transactionalContext.get()).is("bound"));
+            checkContext(1);
+        });
     }
 
     @Test

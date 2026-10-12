@@ -99,6 +99,22 @@ class ContextTest {
     }
 
     @Test
+    void whereReplacesValueOfLambda() {
+        Context<String> lambda = () -> "value";
+
+        Context.where(lambda, "other").run(() -> assertThat(lambda.get()).isEqualTo("other"));
+
+        assertThat(lambda.get()).isEqualTo("value");
+    }
+
+    @Test
+    void getFailsWhenLambdaReturnsNull() {
+        Context<String> lambda = () -> null;
+
+        assertThrows(NoSuchElementException.class, lambda::get);
+    }
+
+    @Test
     void whereFailsOnNullValue() {
         assertThrows(NullPointerException.class, () -> Context.where(context, null));
     }
