@@ -1,6 +1,8 @@
 package software.plusminus.context;
 
 import java.util.Collections;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -10,7 +12,9 @@ public interface Context<T> {
     T get();
 
     default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
-        return new ScopedContext<>(() -> mapper.apply(get()));
+        return () -> Optional.of(get())
+                .map(mapper)
+                .orElseThrow(() -> new NoSuchElementException("No value in context"));
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {

@@ -138,15 +138,24 @@ class ContextTest {
     }
 
     @Test
-    void mapIsCalledOncePerScope() {
+    void mapIsCalledOnEveryRead() {
         AtomicInteger calls = new AtomicInteger();
         Context<String> mapped = context.map(value -> value + calls.incrementAndGet());
 
         Context.where(context, "value").run(() -> {
             assertThat(mapped.get()).isEqualTo("value1");
-            assertThat(mapped.get()).isEqualTo("value1");
-            Context.where(context, "other").run(() -> assertThat(mapped.get()).isEqualTo("other2"));
-            Context.where(mapped, "bound").run(() -> assertThat(mapped.get()).isEqualTo("bound"));
+            assertThat(mapped.get()).isEqualTo("value2");
         });
+    }
+
+    @Test
+    void mapFailsWhenMapperReturnsNull() {
+        Context<String> mapped = context.map(value -> null);
+        ContextBindings bindings = Context.where(context, "value");
+
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
+                () -> bindings.run(mapped::get));
+
+        assertThat(exception.getMessage()).isEqualTo("No value in context");
     }
 }
