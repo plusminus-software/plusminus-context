@@ -2,6 +2,7 @@ package software.plusminus.context;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,15 +16,15 @@ class ContextTest {
     void getFailsOutsideScope() {
         IllegalStateException exception = assertThrows(IllegalStateException.class, context::get);
 
-        assertThat(exception.getMessage()).isEqualTo("Scope is not initialized");
+        assertThat(exception.getMessage()).isEqualTo("No active scope");
     }
 
     @Test
     void getFailsWhenNotBound() {
-        IllegalStateException exception = assertThrows(IllegalStateException.class,
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
                 () -> Context.run(context::get));
 
-        assertThat(exception.getMessage()).isEqualTo("Context is not bound");
+        assertThat(exception.getMessage()).isEqualTo("No value in context");
     }
 
     @Test

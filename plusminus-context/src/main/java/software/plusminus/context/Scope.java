@@ -69,7 +69,7 @@ final class Scope implements AutoCloseable {
 
     static <T> T getSavedValue(Context<T> context, Supplier<? extends T> supplier) {
         return current()
-                .orElseThrow(() -> new IllegalStateException("Scope is not initialized"))
+                .orElseThrow(() -> new IllegalStateException("No active scope"))
                 .save(context, supplier);
     }
 

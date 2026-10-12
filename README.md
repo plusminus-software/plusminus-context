@@ -28,7 +28,7 @@ Context.where(user, currentUser).run(() -> {
     User value = user.get();
 });
 
-user.get(); // throws IllegalStateException outside of the block
+user.get(); // throws NoSuchElementException outside of the block
 ```
 
 To run a task in another thread with the current values:

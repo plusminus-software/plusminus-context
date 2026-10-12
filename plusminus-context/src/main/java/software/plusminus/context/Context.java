@@ -1,6 +1,7 @@
 package software.plusminus.context;
 
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -23,7 +24,7 @@ public interface Context<T> {
 
     static <T> Context<T> of() {
         return new ScopedContext<>(() -> {
-            throw new IllegalStateException("Context is not bound");
+            throw new NoSuchElementException("No value in context");
         });
     }
 

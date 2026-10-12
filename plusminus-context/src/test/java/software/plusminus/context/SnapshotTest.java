@@ -3,6 +3,7 @@ package software.plusminus.context;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -67,7 +68,7 @@ class SnapshotTest {
 
         ExecutionException exception = assertThrows(ExecutionException.class,
                 () -> executor.submit(read).get());
-        assertThat(exception.getCause().getMessage()).isEqualTo("Scope is not initialized");
+        assertThat(exception.getCause().getMessage()).isEqualTo("No active scope");
     }
 
     @Test
@@ -99,7 +100,9 @@ class SnapshotTest {
         IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> bindings.call(() -> submit(task)));
 
-        assertThat(exception.getCause().getCause().getMessage()).isEqualTo("Context is not bound");
+        assertThat(exception.getCause().getCause())
+                .isInstanceOf(NoSuchElementException.class)
+                .hasMessage("No value in context");
     }
 
     private <V> V submit(Callable<V> task) {
