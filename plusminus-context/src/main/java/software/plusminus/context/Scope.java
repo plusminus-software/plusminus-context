@@ -60,20 +60,15 @@ final class Scope implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     static <T> T getBoundValue(Context<T> context) {
-        Scope scope = getScope();
-        return (T) scope.bound.get(context);
+        Scope scope = CURRENT.get();
+        return scope == null ? null : (T) scope.bound.get(context);
     }
 
     static <T> T getSavedValue(Context<T> context, Supplier<? extends T> supplier) {
-        Scope scope = getScope();
-        return scope.save(context, supplier);
-    }
-
-    private static Scope getScope() {
         Scope scope = CURRENT.get();
         if (scope == null) {
             throw new IllegalStateException("Scope is not initialized");
         }
-        return scope;
+        return scope.save(context, supplier);
     }
 }

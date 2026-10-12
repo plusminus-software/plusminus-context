@@ -84,13 +84,10 @@ class ContextTest {
     }
 
     @Test
-    void whereFailsOnContextThatCannotBeBound() {
-        Context<String> lambda = () -> "value";
+    void constantWorksOutsideScope() {
+        Context<String> constant = Context.of("value");
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> Context.where(lambda, "other"));
-
-        assertThat(exception.getMessage()).isEqualTo("Context cannot be bound");
+        assertThat(constant.get()).isEqualTo("value");
     }
 
     @Test

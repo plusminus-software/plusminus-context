@@ -14,9 +14,6 @@ public final class ContextBindings {
     private final Map<Context<?>, Object> values;
 
     public <T> ContextBindings where(Context<T> context, T value) {
-        if (!(context instanceof ScopedContext)) {
-            throw new IllegalArgumentException("Context cannot be bound");
-        }
         Map<Context<?>, Object> result = new HashMap<>(values);
         result.put(context, Objects.requireNonNull(value));
         return new ContextBindings(result);

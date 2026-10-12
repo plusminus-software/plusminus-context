@@ -18,7 +18,7 @@ public interface Context<T> {
     }
 
     static <T> Context<T> of(T value) {
-        return new ScopedContext<>(() -> value);
+        return new ConstantContext<>(value);
     }
 
     static <T> Context<T> of() {
