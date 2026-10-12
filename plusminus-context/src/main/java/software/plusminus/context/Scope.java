@@ -3,9 +3,9 @@ package software.plusminus.context;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
-@SuppressWarnings("PMD.CloseResource")
 final class Scope implements AutoCloseable {
 
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
@@ -25,6 +25,14 @@ final class Scope implements AutoCloseable {
             saved.put(context, value);
         }
         return (T) value;
+    }
+
+    private Map<Context<?>, Object> copy(boolean includeSaves) {
+        Map<Context<?>, Object> values = new HashMap<>(bound);
+        if (includeSaves) {
+            values.putAll(saved);
+        }
+        return values;
     }
 
     @Override
@@ -47,28 +55,25 @@ final class Scope implements AutoCloseable {
     }
 
     static Snapshot snapshot(boolean includeSaves) {
-        Scope scope = CURRENT.get();
-        if (scope == null) {
-            return new Snapshot(Collections.emptyMap());
-        }
-        Map<Context<?>, Object> values = new HashMap<>(scope.bound);
-        if (includeSaves) {
-            values.putAll(scope.saved);
-        }
-        return new Snapshot(values);
+        return current()
+                .map(scope -> new Snapshot(scope.copy(includeSaves)))
+                .orElseGet(() -> new Snapshot(Collections.emptyMap()));
     }
 
     @SuppressWarnings("unchecked")
     static <T> T getBoundValue(Context<T> context) {
-        Scope scope = CURRENT.get();
-        return scope == null ? null : (T) scope.bound.get(context);
+        return (T) current()
+                .map(scope -> scope.bound.get(context))
+                .orElse(null);
     }
 
     static <T> T getSavedValue(Context<T> context, Supplier<? extends T> supplier) {
-        Scope scope = CURRENT.get();
-        if (scope == null) {
-            throw new IllegalStateException("Scope is not initialized");
-        }
-        return scope.save(context, supplier);
+        return current()
+                .orElseThrow(() -> new IllegalStateException("Scope is not initialized"))
+                .save(context, supplier);
+    }
+
+    private static Optional<Scope> current() {
+        return Optional.ofNullable(CURRENT.get());
     }
 }
