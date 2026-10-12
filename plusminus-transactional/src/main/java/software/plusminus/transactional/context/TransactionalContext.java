@@ -6,6 +6,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import software.plusminus.context.Context;
 
+import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -27,15 +28,15 @@ public final class TransactionalContext<T> implements Context<T> {
         T value = (T) TransactionSynchronizationManager.getResource(this);
         if (value == null) {
             value = supplier.get();
+            if (value == null) {
+                throw new NoSuchElementException("No value in context");
+            }
             bind(value);
         }
         return value;
     }
 
     private void bind(T value) {
-        if (value == null) {
-            return;
-        }
         TransactionSynchronizationManager.bindResource(this, value);
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

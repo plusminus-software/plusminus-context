@@ -6,6 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import software.plusminus.transactional.context.fixtures.TransactionService;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -93,7 +94,8 @@ class TransactionalContextIntegrationTest {
     void nullValue() {
         TransactionalContext<String> nullContext = TransactionalContext.of(() -> null);
 
-        transactionService.inTransaction(() -> check(nullContext.get()).isNull());
+        transactionService.inTransaction(() ->
+                assertThrows(NoSuchElementException.class, nullContext::get));
     }
 
     private void checkContext(int transactionLevel) {

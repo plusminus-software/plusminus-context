@@ -128,18 +128,13 @@ class ContextTest {
     }
 
     @Test
-    void nullFromSupplierIsNotSaved() {
-        AtomicInteger calls = new AtomicInteger();
-        Context<String> nullContext = Context.of(() -> {
-            calls.incrementAndGet();
-            return null;
-        });
+    void getFailsWhenSupplierReturnsNull() {
+        Context<String> nullContext = Context.of(() -> null);
 
-        Context.run(() -> {
-            assertThat(nullContext.get()).isNull();
-            assertThat(nullContext.get()).isNull();
-        });
-        assertThat(calls.get()).isEqualTo(2);
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
+                () -> Context.run(nullContext::get));
+
+        assertThat(exception.getMessage()).isEqualTo("No value in context");
     }
 
     @Test

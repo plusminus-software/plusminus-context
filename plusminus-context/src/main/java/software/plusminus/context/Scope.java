@@ -3,6 +3,7 @@ package software.plusminus.context;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -22,6 +23,9 @@ final class Scope implements AutoCloseable {
         Object value = saved.get(context);
         if (value == null) {
             value = supplier.get();
+            if (value == null) {
+                throw new NoSuchElementException("No value in context");
+            }
             saved.put(context, value);
         }
         return (T) value;
