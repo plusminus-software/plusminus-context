@@ -3,9 +3,7 @@ package software.plusminus.context.propagation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.plusminus.context.Context;
-import software.plusminus.context.WritableContext;
 
-import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,12 +12,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ContextPropagationTaskDecoratorTest {
 
-    private WritableContext<String> writableContext = WritableContext.of();
-    private Context<String> threadNameContext = Context.of(() -> Thread.currentThread().getName());
-    private Context<String> constantContext = Context.constant("constant");
-    private ContextPropagationTaskDecorator decorator = new ContextPropagationTaskDecorator(
-            Arrays.asList(writableContext, threadNameContext, constantContext));
+    private Context<String> context = Context.of();
     private ExecutorService executor = Executors.newSingleThreadExecutor();
+    private AtomicReference<String> seenByWorker = new AtomicReference<>();
 
     @AfterEach
     void tearDown() {
@@ -27,67 +22,35 @@ class ContextPropagationTaskDecoratorTest {
     }
 
     @Test
-    void propagatesWritableContext() throws Exception {
-        writableContext.set("value");
-        AtomicReference<String> seenByWorker = new AtomicReference<>();
+    void propagatesContext() {
+        ContextPropagationTaskDecorator decorator = new ContextPropagationTaskDecorator();
 
-        runDecorated(() -> seenByWorker.set(writableContext.get()));
+        Runnable task = () -> seenByWorker.set(context.get());
+
+        Context.where(context, "value")
+                .run(() -> submit(decorator.decorate(task)));
 
         assertThat(seenByWorker.get()).isEqualTo("value");
     }
 
     @Test
-    void propagatesReadOnlyThreadLocalContext() throws Exception {
-        AtomicReference<String> seenByWorker = new AtomicReference<>();
+    void composesDelegateDecorator() {
+        ContextPropagationTaskDecorator decorator = new ContextPropagationTaskDecorator(task -> () -> {
+            seenByWorker.set("delegate:" + context.get());
+            task.run();
+        });
 
-        runDecorated(() -> seenByWorker.set(threadNameContext.get()));
-
-        assertThat(seenByWorker.get()).isEqualTo(Thread.currentThread().getName());
-    }
-
-    @Test
-    void ignoresConstantContext() throws Exception {
-        AtomicReference<String> seenByWorker = new AtomicReference<>();
-
-        runDecorated(() -> seenByWorker.set(constantContext.get()));
-
-        assertThat(seenByWorker.get()).isEqualTo("constant");
-    }
-
-    @Test
-    void clearsWorkerThreadAfterTask() throws Exception {
-        writableContext.set("value");
-
-        runDecorated(() -> { });
-
-        assertThat(executor.submit(writableContext::get).get()).isNull();
-    }
-
-    @Test
-    void doesNotChangeCallerContext() throws Exception {
-        writableContext.set("value");
-
-        runDecorated(() -> writableContext.replace("changed by worker"));
-
-        assertThat(writableContext.get()).isEqualTo("value");
-    }
-
-    @Test
-    void composesDelegateDecorator() throws Exception {
-        AtomicReference<String> seenByWorker = new AtomicReference<>();
-        ContextPropagationTaskDecorator composed = new ContextPropagationTaskDecorator(
-                Arrays.asList(writableContext), runnable -> () -> {
-                    seenByWorker.set("delegate:" + writableContext.get());
-                    runnable.run();
-                });
-        writableContext.set("value");
-
-        executor.submit(composed.decorate(() -> { })).get();
+        Context.where(context, "value")
+                .run(() -> submit(decorator.decorate(() -> { })));
 
         assertThat(seenByWorker.get()).isEqualTo("delegate:value");
     }
 
-    private void runDecorated(Runnable task) throws Exception {
-        executor.submit(decorator.decorate(task)).get();
+    private void submit(Runnable task) {
+        try {
+            executor.submit(task).get();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

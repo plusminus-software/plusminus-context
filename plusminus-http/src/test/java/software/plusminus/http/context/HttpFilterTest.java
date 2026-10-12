@@ -11,7 +11,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import software.plusminus.context.WritableContext;
+import software.plusminus.context.Context;
 import software.plusminus.http.context.fixtures.TestScopeListener;
 import software.plusminus.scope.events.ScopeCompletedEvent;
 import software.plusminus.scope.events.ScopeFailedEvent;
@@ -20,9 +20,9 @@ import software.plusminus.scope.events.ScopeStartedEvent;
 
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -35,10 +35,8 @@ class HttpFilterTest {
     @LocalServerPort
     private int port;
 
-    @SpyBean
-    private WritableContext<HttpServletRequest> requestContext;
-    @SpyBean
-    private WritableContext<HttpServletResponse> responseContext;
+    @Autowired
+    private Context<HttpServletRequest> requestContext;
     @SpyBean
     private TestScopeListener listener;
 
@@ -47,17 +45,6 @@ class HttpFilterTest {
 
     @Captor
     private ArgumentCaptor<ScopeFailedEvent<?>> failedEventCaptor;
-
-    @Test
-    void writableContext() {
-        String url = "http://localhost:" + port + "/ok";
-
-        String response = restTemplate.getForObject(url, String.class);
-
-        check(response).is("ok");
-        verify(requestContext).set(any(HttpServletRequest.class));
-        verify(responseContext).set(any(HttpServletResponse.class));
-    }
 
     @Test
     void ok() {
@@ -98,15 +85,23 @@ class HttpFilterTest {
 
     @Test
     void context() {
-        String url = "http://localhost:" + port + "/ok";
+        String url = "http://localhost:" + port + "/context";
 
-        restTemplate.getForObject(url, String.class);
+        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
-        verify(requestContext).set(any());
-        verify(responseContext).set(any());
-        verify(requestContext).get();
-        verify(responseContext).get();
-        check(requestContext.optional()).isEmpty();
-        check(responseContext.optional()).isEmpty();
+        check(response.getBody()).is("/context context");
+        check(response.getHeaders().getFirst("handler")).is("HandlerMethod");
+        assertThrows(IllegalStateException.class, requestContext::get);
+    }
+
+    @Test
+    void asyncDispatch() {
+        String url = "http://localhost:" + port + "/async";
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        check(response).is("async");
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(listener).finalized(any(ScopeFinalizedEvent.class)));
     }
 }

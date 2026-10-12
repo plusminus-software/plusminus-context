@@ -5,13 +5,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
-import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.util.NestedServletException;
-import software.plusminus.context.WritableContext;
 import software.plusminus.scope.ExceptionExtractor;
 import software.plusminus.scope.events.InvocationCompletedEvent;
 import software.plusminus.scope.events.InvocationFailedEvent;
@@ -27,9 +25,9 @@ import javax.servlet.http.HttpServletResponse;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
 
+    public static final String HANDLER = HttpInterceptor.class.getName() + ".handler";
+
     private ApplicationEventPublisher eventPublisher;
-    private WritableContext<Object> handlerContext;
-    private WritableContext<HandlerMethod> handlerMethodContext;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -39,10 +37,15 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                              Object handler) {
+        request.setAttribute(HANDLER, handler);
         if (request.getDispatcherType() == DispatcherType.REQUEST) {
-            populateHandlerContext(handler);
             InvocationStartedEvent<?> event = new InvocationStartedEvent<>(handler);
-            eventPublisher.publishEvent(event);
+            try {
+                eventPublisher.publishEvent(event);
+            } catch (RuntimeException e) {
+                eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
+                throw e;
+            }
             if (event.isIntercepted()) {
                 eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
                 return false;
@@ -71,12 +74,5 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
             eventPublisher.publishEvent(new InvocationFailedEvent<>(handler, extractedException));
         }
         eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
-    }
-
-    private void populateHandlerContext(Object handler) {
-        handlerContext.set(handler);
-        if (handler instanceof HandlerMethod) {
-            handlerMethodContext.set((HandlerMethod) handler);
-        }
     }
 }

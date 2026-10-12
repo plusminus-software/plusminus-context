@@ -1,34 +1,61 @@
 package software.plusminus.context;
 
-import java.util.Optional;
+import java.util.Collections;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
+@FunctionalInterface
 public interface Context<T> {
 
-    T get();
+    T supply();
 
-    default Optional<T> optional() {
-        return Optional.ofNullable(get());
+    default T get() {
+        T value = Scope.getBoundValue(this);
+        if (value == null) {
+            value = supply();
+        }
+        if (value == null) {
+            throw new NoSuchElementException("No value in context");
+        }
+        return value;
     }
 
-    static <T> Context<T> constant(T value) {
-        return new ConstantContext<>(value);
-    }
-
-    static <T> Context<T> of(T initialValue) {
-        return of(initialValue, false);
-    }
-
-    static <T> Context<T> of(T initialValue, boolean inheritable) {
-        return of(() -> initialValue, inheritable);
+    default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
+        return () -> mapper.apply(get());
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
-        return of(supplier, false);
+        return new ScopedContext<>(supplier);
     }
 
-    static <T> Context<T> of(Supplier<T> supplier, boolean inheritable) {
-        ThreadLocal<T> threadLocal = ThreadLocalUtil.createThreadLocal(supplier, inheritable);
-        return new ThreadLocalContext<>(threadLocal);
+    static <T> Context<T> of(T value) {
+        Objects.requireNonNull(value);
+        return () -> value;
+    }
+
+    static <T> Context<T> of() {
+        return new ScopedContext<>(() -> null);
+    }
+
+    static <T> ContextBindings where(Context<T> context, T value) {
+        return new ContextBindings(Collections.emptyMap()).where(context, value);
+    }
+
+    static void run(Runnable body) {
+        new ContextBindings(Collections.emptyMap()).run(body);
+    }
+
+    static <R> R call(Supplier<R> body) {
+        return new ContextBindings(Collections.emptyMap()).call(body);
+    }
+
+    static Snapshot snapshot() {
+        return snapshot(false);
+    }
+
+    static Snapshot snapshot(boolean includeSaves) {
+        return Scope.snapshot(includeSaves);
     }
 }

@@ -3,10 +3,11 @@ package software.plusminus.transactional.context;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import software.plusminus.context.Context;
 import software.plusminus.transactional.context.fixtures.TransactionService;
 
-import java.util.List;
-import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +33,21 @@ class TransactionalContextIntegrationTest {
     void singleTransaction() {
         transactionService.inTransaction(() -> checkContext(1));
         checkContextOutsideTransaction();
+    }
+
+    @Test
+    void whereReplacesTransactionValue() {
+        transactionService.inTransaction(() -> {
+            Context.where(transactionalContext, "bound")
+                    .run(() -> check(transactionalContext.get()).is("bound"));
+            checkContext(1);
+        });
+    }
+
+    @Test
+    void whereDoesNotWorkOutsideTransaction() {
+        Context.where(transactionalContext, "bound")
+                .run(this::checkContextOutsideTransaction);
     }
 
     @Test
@@ -62,17 +78,50 @@ class TransactionalContextIntegrationTest {
         checkContextOutsideTransaction();
     }
 
+    @Test
+    void newTransactionWithoutValueInOuterTransaction() {
+        transactionService.inTransaction(() -> {
+            transactionService.inNewTransaction(() -> checkContext(1));
+            checkContext(2);
+        });
+        checkContextOutsideTransaction();
+    }
+
+    @Test
+    void transactionWithoutSynchronization() {
+        transactionService.inTransaction(() -> {
+            TransactionSynchronizationManager.clearSynchronization();
+            try {
+                assertThrows(IllegalStateException.class, () -> transactionalContext.get());
+            } finally {
+                TransactionSynchronizationManager.initSynchronization();
+            }
+        });
+    }
+
+    @Test
+    void supplierReadsOtherTransactionalContext() {
+        TransactionalContext<String> derived = TransactionalContext.of(() -> transactionalContext.get() + "!");
+
+        transactionService.inTransaction(() -> check(derived.get()).is(TEST_VALUE + "1!"));
+    }
+
+    @Test
+    void nullValue() {
+        TransactionalContext<String> nullContext = TransactionalContext.of(() -> null);
+
+        transactionService.inTransaction(() ->
+                assertThrows(NoSuchElementException.class, nullContext::get));
+    }
+
     private void checkContext(int transactionLevel) {
-        check(TransactionalContext.CONTEXT.get()).hasSize(transactionLevel);
-        String value = transactionalContext.get();
-        check(value).is(TEST_VALUE + transactionLevel);
+        check(transactionalContext.get()).is(TEST_VALUE + transactionLevel);
     }
 
     private void checkContextOutsideTransaction() {
-        List<Map<TransactionalContext<?>, Object>> context = TransactionalContext.CONTEXT.get();
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> transactionalContext.get());
-
-        check(context).isEmpty();
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> transactionalContext.get());
         check(exception.getMessage()).is("No active transaction");
+        check(TransactionSynchronizationManager.hasResource(transactionalContext)).is(false);
     }
 }

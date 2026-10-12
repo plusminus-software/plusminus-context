@@ -21,19 +21,29 @@ public class ScopeRunner {
     @SuppressWarnings("PMD.AvoidCatchingThrowable")
     public final void run(Object source, ThrowingRunnable scope,
                           Class<? extends Exception>... exceptionsToExtract) {
-
-        eventPublisher.publishEvent(new ScopeStartedEvent());
         try {
+            eventPublisher.publishEvent(new ScopeStartedEvent());
             AroundScope.around(arounds, source, scope.asRunnable()).run();
-            eventPublisher.publishEvent(new ScopeCompletedEvent());
         } catch (Throwable t) {
             Exception failure = t instanceof Exception
                     ? ExceptionExtractor.extract((Exception) t, exceptionsToExtract)
                     : new RuntimeException(t);
-            eventPublisher.publishEvent(new ScopeFailedEvent<>(failure));
+            publishAfterFailure(new ScopeFailedEvent<>(failure), t);
+            publishAfterFailure(new ScopeFinalizedEvent(), t);
             throw t;
+        }
+        try {
+            eventPublisher.publishEvent(new ScopeCompletedEvent());
         } finally {
             eventPublisher.publishEvent(new ScopeFinalizedEvent());
+        }
+    }
+
+    private void publishAfterFailure(Object event, Throwable failure) {
+        try {
+            eventPublisher.publishEvent(event);
+        } catch (RuntimeException e) {
+            failure.addSuppressed(e);
         }
     }
 }

@@ -7,13 +7,19 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.context.ApplicationEventPublisher;
+import software.plusminus.scope.events.ScopeFinalizedEvent;
+import software.plusminus.scope.events.ScopeStartedEvent;
 import software.plusminus.scope.fixtures.FirstAroundScope;
 import software.plusminus.scope.fixtures.NotSupportedAroundScope;
 import software.plusminus.scope.fixtures.SecondAroundScope;
 import software.plusminus.scope.fixtures.TestListener;
 
+import java.util.Collections;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -75,5 +81,19 @@ class ScopeRunnerTest {
         inOrder.verify(secondAroundScope).around(any());
         verify(notSupportedAroundScope, never()).around(any());
         verify(runnable).run();
+    }
+
+    @Test
+    void failedStartListenerIsFinalized() {
+        ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+        doThrow(new IllegalStateException("start")).when(publisher).publishEvent(any(ScopeStartedEvent.class));
+        doThrow(new IllegalStateException("finalize")).when(publisher).publishEvent(any(ScopeFinalizedEvent.class));
+        ScopeRunner runner = new ScopeRunner(publisher, Collections.emptyList());
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> runner.run(this, () -> { }));
+
+        check(exception.getMessage()).is("start");
+        check(exception.getSuppressed()[0].getMessage()).is("finalize");
+        verify(publisher).publishEvent(any(ScopeFinalizedEvent.class));
     }
 }

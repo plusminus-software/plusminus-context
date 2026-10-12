@@ -1,66 +1,61 @@
 package software.plusminus.transactional.context;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import software.plusminus.context.Context;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
-public interface TransactionalContext<T> {
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public final class TransactionalContext<T> implements Context<T> {
 
-    ThreadLocal<List<Map<TransactionalContext<?>, Object>>> CONTEXT = ThreadLocal.withInitial(ArrayList::new);
+    private final Supplier<? extends T> supplier;
 
-    default T get() {
+    public static <T> TransactionalContext<T> of(Supplier<? extends T> supplier) {
+        return new TransactionalContext<>(supplier);
+    }
+
+    @Override
+    public T get() {
         if (!TransactionSynchronizationManager.isSynchronizationActive()
                 || !TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("No active transaction");
         }
-        List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
-        if (transactions.isEmpty()) {
-            throw new IllegalStateException("Cannot get transaction context");
-        }
-        Map<TransactionalContext<?>, Object> values = transactions.get(transactions.size() - 1);
-        return (T) values.computeIfAbsent(this, self -> provide());
+        return Context.super.get();
     }
 
-    T provide();
-
-    static <T> TransactionalContext<T> of(Supplier<T> provider) {
-        return new SimpleTransactionalContext<>(provider);
-    }
-
-    @SuppressWarnings("PMD.CompareObjectsWithEquals")
-    static void onNewTransaction() {
-        List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
-        Map<TransactionalContext<?>, Object> transaction = new HashMap<>();
-        transactions.add(transaction);
-        try {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCompletion(int status) {
-                    List<Map<TransactionalContext<?>, Object>> current = CONTEXT.get();
-                    // Remove exactly the frame this synchronization owns (by identity), so an
-                    // out-of-order completion cannot pop a sibling transaction's frame.
-                    for (int i = current.size() - 1; i >= 0; i--) {
-                        if (current.get(i) == transaction) {
-                            current.remove(i);
-                            break;
-                        }
-                    }
-                    if (current.isEmpty()) {
-                        CONTEXT.remove();
-                    }
-                }
-            });
-        } catch (RuntimeException e) {
-            transactions.remove(transactions.size() - 1);
-            if (transactions.isEmpty()) {
-                CONTEXT.remove();
+    @Override
+    @SuppressWarnings("unchecked")
+    public T supply() {
+        T value = (T) TransactionSynchronizationManager.getResource(this);
+        if (value == null) {
+            value = supplier.get();
+            if (value != null) {
+                bind(value);
             }
-            throw e;
         }
+        return value;
+    }
+
+    private void bind(T value) {
+        TransactionSynchronizationManager.bindResource(this, value);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void suspend() {
+                TransactionSynchronizationManager.unbindResource(TransactionalContext.this);
+            }
+
+            @Override
+            public void resume() {
+                TransactionSynchronizationManager.bindResource(TransactionalContext.this, value);
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                TransactionSynchronizationManager.unbindResourceIfPossible(TransactionalContext.this);
+            }
+        });
     }
 }
