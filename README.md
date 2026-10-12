@@ -20,7 +20,8 @@ returns `null`.
 
 ## Working with contexts
 
-A context is read with `get()`. A value is bound for a block of code with
+A context is read with `get()`. Every context has its own value (or none), and
+a value bound with `where` replaces it. A value is bound for a block of code with
 `Context.where(...)` and is visible anywhere inside that block:
 
 ```java
@@ -46,14 +47,17 @@ replace them; the outer values are back when the inner block ends.
 
 ### Kinds of contexts
 
-| Created with | Value | Works outside a block |
+| Created with | Own value | Works outside a block |
 | --- | --- | --- |
-| `Context.of()` | only the one bound with `where` | no |
+| `Context.of()` | none, so it must be bound with `where` | no |
 | `Context.of(supplier)` | the supplier result, computed once per block | no |
 | `Context.of(value)` | the given value | yes |
 | `context.map(mapper)` | the mapper result, computed on every read | if the source context does |
+| a lambda or a custom class | the result of its `supply()` on every read | yes |
+| `TransactionalContext.of(supplier)` | the supplier result, computed once per transaction | yes, inside a transaction |
 
-A value bound with `where` always replaces the value of the context itself.
+A value bound with `where` always replaces the own value, for every kind of
+context.
 `Context.run(...)` and `Context.call(...)` open a block without binding anything,
 which is enough for contexts created with a supplier.
 
@@ -68,14 +72,18 @@ Context.run(() -> {
 });
 ```
 
+A value computed by a supplier belongs to the block where it was read. An inner
+block does not reuse it and calls the supplier again.
+
 ### Missing values
 
 `get()` never returns `null`, for any kind of context:
 
 | Case | Exception |
 | --- | --- |
-| No block is open | `IllegalStateException("No active scope")` |
-| Nothing is bound, or the supplier or mapper returns `null` | `NoSuchElementException("No value in context")` |
+| `Context.of()` or `Context.of(supplier)` is read when no block is open | `IllegalStateException("No active scope")` |
+| A transactional context is read without a transaction and without a bound value | `IllegalStateException("No active transaction")` |
+| Nothing is bound and there is no own value (the supplier, mapper or `supply()` returns `null`) | `NoSuchElementException("No value in context")` |
 | `Context.of(null)` or `where(context, null)` | `NullPointerException` |
 
 ### Other threads
@@ -87,16 +95,20 @@ executor.submit(Context.snapshot().wrap(task));
 ```
 
 The snapshot holds the values bound with `where`. `Context.snapshot(true)` also
-copies the values already computed by suppliers. In a Spring application
+copies the values already computed by suppliers. A task that runs in a thread
+with its own open block also sees the values of that block; the snapshot values
+come first.
+
+In a Spring application
 `ContextPropagationTaskDecorator` does this for `@Async` methods and task
 executors, and it is registered automatically.
 
 ### Custom contexts
 
-`Context<T>` is a functional interface with one method to implement, `find()`.
-It returns the context's own value, or `null` when there is none. Callers always
-use `get()`, which first looks for a value bound with `where`, then calls
-`find()`, and throws when both give nothing:
+`Context<T>` is a functional interface with one method to implement, `supply()`.
+It returns the context's own value, or `null` when there is none. Callers never
+call `supply()`; they use `get()`, which first looks for a value bound with
+`where`, then calls `supply()`, and throws when both give nothing:
 
 ```java
 Context<Locale> locale = LocaleContextHolder::getLocale;
@@ -117,6 +129,25 @@ UUID current = transactionId.get(); // throws IllegalStateException("No active t
 An inner transaction started with `REQUIRES_NEW` gets its own value, and the
 outer value is back when it ends. A transactional context does not need a block,
 and a value bound with `where` replaces the transaction value inside the block.
+
+### HTTP contexts
+
+With `plusminus-http` each request runs inside a block, and these beans can be
+injected anywhere:
+
+| Bean | Value |
+| --- | --- |
+| `Context<HttpServletRequest>` | the current request |
+| `Context<HttpServletResponse>` | the current response |
+| `Context<Object>` | the handler of the request, once it is chosen |
+| `Context<HandlerMethod>` | the handler, when it is a controller method |
+
+```java
+@Autowired
+private Context<HttpServletRequest> request;
+
+String agent = request.get().getHeader("User-Agent");
+```
 
 ## Getting started
 
