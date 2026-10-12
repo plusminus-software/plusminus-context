@@ -29,14 +29,6 @@ final class Scope implements AutoCloseable {
         return (T) value;
     }
 
-    private Map<Context<?>, Object> copy(boolean includeSaves) {
-        Map<Context<?>, Object> values = new HashMap<>(bound);
-        if (includeSaves) {
-            values.putAll(saved);
-        }
-        return values;
-    }
-
     @Override
     public void close() {
         if (outer == null) {
@@ -56,9 +48,9 @@ final class Scope implements AutoCloseable {
         return scope;
     }
 
-    static Snapshot snapshot(boolean includeSaves) {
+    static Snapshot snapshot() {
         return current()
-                .map(scope -> new Snapshot(scope.copy(includeSaves)))
+                .map(scope -> new Snapshot(new HashMap<>(scope.bound)))
                 .orElseGet(() -> new Snapshot(Collections.emptyMap()));
     }
 

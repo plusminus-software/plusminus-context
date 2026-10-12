@@ -34,7 +34,7 @@ class SnapshotTest {
     }
 
     @Test
-    void doesNotCopySavedValueByDefault() {
+    void doesNotCopySavedValue() {
         Callable<String> read = thread::get;
 
         String seenByWorker = Context.call(() -> {
@@ -43,18 +43,6 @@ class SnapshotTest {
         });
 
         assertThat(seenByWorker).isNotEqualTo(Thread.currentThread().getName());
-    }
-
-    @Test
-    void copiesSavedValueOnDemand() {
-        Callable<String> read = thread::get;
-
-        String seenByWorker = Context.call(() -> {
-            thread.get();
-            return submit(Context.snapshot(true).wrap(read));
-        });
-
-        assertThat(seenByWorker).isEqualTo(Thread.currentThread().getName());
     }
 
     @Test

@@ -72,8 +72,22 @@ Context.run(() -> {
 });
 ```
 
-A value computed by a supplier belongs to the block where it was read. An inner
-block does not reuse it and calls the supplier again.
+### Bound values and computed values
+
+- A value bound with `where` is the same everywhere inside the block: in inner
+  blocks and in tasks wrapped with a snapshot.
+- A value computed by a supplier belongs to one block in one thread. An inner
+  block, another thread, or another dispatch of the same HTTP request calls the
+  supplier again and may get a different value.
+
+So a value that must stay the same, like a request id or the current user, is
+computed once at the entry point and bound with `where`:
+
+```java
+Context<UUID> requestId = Context.of();
+
+Context.where(requestId, UUID.randomUUID()).run(body);
+```
 
 ### Missing values
 
@@ -94,8 +108,8 @@ Values are not visible in other threads. Take a snapshot and wrap the task:
 executor.submit(Context.snapshot().wrap(task));
 ```
 
-The snapshot holds the values bound with `where`. `Context.snapshot(true)` also
-copies the values already computed by suppliers. A task that runs in a thread
+The snapshot holds only the values bound with `where`; values computed by
+suppliers are computed again in the other thread. A task that runs in a thread
 with its own open block also sees the values of that block; the snapshot values
 come first.
 

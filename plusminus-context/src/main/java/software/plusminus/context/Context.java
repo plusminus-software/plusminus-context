@@ -52,10 +52,6 @@ public interface Context<T> {
     }
 
     static Snapshot snapshot() {
-        return snapshot(false);
-    }
-
-    static Snapshot snapshot(boolean includeSaves) {
-        return Scope.snapshot(includeSaves);
+        return Scope.snapshot();
     }
 }
