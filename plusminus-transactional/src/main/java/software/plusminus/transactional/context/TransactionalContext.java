@@ -8,54 +8,59 @@ import software.plusminus.context.Context;
 
 import java.util.function.Supplier;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-public final class TransactionalContext<T> implements Context<T> {
+public final class TransactionalContext {
 
-    private final Supplier<? extends T> supplier;
-
-    public static <T> TransactionalContext<T> of(Supplier<? extends T> supplier) {
-        return new TransactionalContext<>(supplier);
+    private TransactionalContext() {
     }
 
-    @Override
-    public T get() {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()
-                || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("No active transaction");
+    /**
+     * Creates a context with one value per active transaction. The value is not cached in the scope,
+     * and a value bound with {@code where} replaces it even outside a transaction.
+     */
+    public static <T> Context<T> of(Supplier<? extends T> supplier) {
+        return Context.dynamic(new TransactionalSupplier<>(supplier));
+    }
+
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    private static final class TransactionalSupplier<T> implements Supplier<T> {
+
+        private final Supplier<? extends T> supplier;
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public T get() {
+            if (!TransactionSynchronizationManager.isSynchronizationActive()
+                    || !TransactionSynchronizationManager.isActualTransactionActive()) {
+                throw new IllegalStateException("No active transaction");
+            }
+            T value = (T) TransactionSynchronizationManager.getResource(this);
+            if (value == null) {
+                value = supplier.get();
+                if (value != null) {
+                    bind(value);
+                }
+            }
+            return value;
         }
-        return Context.super.get();
-    }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public T supply() {
-        T value = (T) TransactionSynchronizationManager.getResource(this);
-        if (value == null) {
-            value = supplier.get();
-            if (value != null) {
-                bind(value);
-            }
+        private void bind(T value) {
+            TransactionSynchronizationManager.bindResource(this, value);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void suspend() {
+                    TransactionSynchronizationManager.unbindResource(TransactionalSupplier.this);
+                }
+
+                @Override
+                public void resume() {
+                    TransactionSynchronizationManager.bindResource(TransactionalSupplier.this, value);
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    TransactionSynchronizationManager.unbindResourceIfPossible(TransactionalSupplier.this);
+                }
+            });
         }
-        return value;
-    }
-
-    private void bind(T value) {
-        TransactionSynchronizationManager.bindResource(this, value);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void suspend() {
-                TransactionSynchronizationManager.unbindResource(TransactionalContext.this);
-            }
-
-            @Override
-            public void resume() {
-                TransactionSynchronizationManager.bindResource(TransactionalContext.this, value);
-            }
-
-            @Override
-            public void afterCompletion(int status) {
-                TransactionSynchronizationManager.unbindResourceIfPossible(TransactionalContext.this);
-            }
-        });
     }
 }

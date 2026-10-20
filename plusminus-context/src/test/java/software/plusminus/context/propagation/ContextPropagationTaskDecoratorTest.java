@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ContextPropagationTaskDecoratorTest {
 
-    private Context<String> context = Context.of();
+    private Context<String> context = Context.required();
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private AtomicReference<String> seenByWorker = new AtomicReference<>();
 

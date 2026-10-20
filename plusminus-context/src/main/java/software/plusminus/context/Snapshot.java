@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
 public final class Snapshot {
@@ -12,18 +13,14 @@ public final class Snapshot {
     private final Map<Context<?>, Object> values;
 
     public Runnable wrap(Runnable task) {
-        return () -> {
-            try (Scope ignored = Scope.open(values)) {
-                task.run();
-            }
+        Supplier<Void> body = () -> {
+            task.run();
+            return null;
         };
+        return () -> Scope.call(values, body);
     }
 
     public <V> Callable<V> wrap(Callable<V> task) {
-        return () -> {
-            try (Scope ignored = Scope.open(values)) {
-                return task.call();
-            }
-        };
+        return () -> Scope.call(values, task);
     }
 }

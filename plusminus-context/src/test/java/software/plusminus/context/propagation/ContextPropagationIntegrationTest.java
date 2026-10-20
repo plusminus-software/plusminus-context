@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ContextPropagationIntegrationTest {
 
-    private Context<String> testContext = Context.of();
+    private Context<String> testContext = Context.required();
     private ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class));
 

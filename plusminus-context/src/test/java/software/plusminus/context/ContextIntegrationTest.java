@@ -31,7 +31,7 @@ class ContextIntegrationTest {
 
         @Bean
         public Context<Integer> integerContext() {
-            return Context.of();
+            return Context.required();
         }
     }
 }

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SnapshotTest {
 
-    private Context<String> context = Context.of();
+    private Context<String> context = Context.required();
     private Context<String> thread = Context.of(() -> Thread.currentThread().getName());
     private ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -34,7 +34,7 @@ class SnapshotTest {
     }
 
     @Test
-    void doesNotCopySavedValue() {
+    void doesNotCopyCachedValue() {
         Callable<String> read = thread::get;
 
         String seenByWorker = Context.call(() -> {
@@ -46,17 +46,25 @@ class SnapshotTest {
     }
 
     @Test
+    void copiesValueBoundWithoutValue() {
+        Callable<String> read = thread::get;
+
+        String seenByWorker = Context.where(thread)
+                .call(() -> submit(Context.snapshot().wrap(read)));
+
+        assertThat(seenByWorker).isEqualTo(Thread.currentThread().getName());
+    }
+
+    @Test
     void closesScopeOfWorkerAfterTask() throws Exception {
         Runnable nothing = () -> { };
         Runnable task = Context.where(context, "value")
                 .call(() -> Context.snapshot().wrap(nothing));
-        Callable<String> read = context::get;
+        Callable<Boolean> inScope = () -> Scope.current() != null;
 
         executor.submit(task).get();
 
-        ExecutionException exception = assertThrows(ExecutionException.class,
-                () -> executor.submit(read).get());
-        assertThat(exception.getCause().getMessage()).isEqualTo("No active scope");
+        assertThat(executor.submit(inScope).get()).isFalse();
     }
 
     @Test
@@ -83,11 +91,13 @@ class SnapshotTest {
     void workerDoesNotSeeLaterBindings() {
         Callable<String> read = context::get;
         Callable<String> task = Context.snapshot().wrap(read);
-        ContextBindings bindings = Context.where(context, "value");
+        ScopeBuilder builder = Context.where(context, "value");
 
         IllegalStateException exception = assertThrows(IllegalStateException.class,
-                () -> bindings.call(() -> submit(task)));
+                () -> builder.call(() -> submit(task)));
 
+        assertThat(exception.getCause())
+                .isInstanceOf(ExecutionException.class);
         assertThat(exception.getCause().getCause())
                 .isInstanceOf(NoSuchElementException.class)
                 .hasMessage("No value in context");

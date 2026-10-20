@@ -7,9 +7,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import software.plusminus.context.Context;
 import software.plusminus.transactional.context.fixtures.TransactionService;
 
-import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static software.plusminus.check.Checks.check;
 
@@ -21,7 +21,7 @@ class TransactionalContextIntegrationTest {
     @Autowired
     private TransactionService transactionService;
     private AtomicInteger index = new AtomicInteger(1);
-    private TransactionalContext<String> transactionalContext = TransactionalContext.of(
+    private Context<String> transactionalContext = TransactionalContext.of(
             () -> TEST_VALUE + index.getAndIncrement());
 
     @Test
@@ -45,9 +45,10 @@ class TransactionalContextIntegrationTest {
     }
 
     @Test
-    void whereDoesNotWorkOutsideTransaction() {
+    void whereWorksOutsideTransaction() {
         Context.where(transactionalContext, "bound")
-                .run(this::checkContextOutsideTransaction);
+                .run(() -> check(transactionalContext.get()).is("bound"));
+        checkContextOutsideTransaction();
     }
 
     @Test
@@ -101,17 +102,16 @@ class TransactionalContextIntegrationTest {
 
     @Test
     void supplierReadsOtherTransactionalContext() {
-        TransactionalContext<String> derived = TransactionalContext.of(() -> transactionalContext.get() + "!");
+        Context<String> derived = TransactionalContext.of(() -> transactionalContext.get() + "!");
 
         transactionService.inTransaction(() -> check(derived.get()).is(TEST_VALUE + "1!"));
     }
 
     @Test
     void nullValue() {
-        TransactionalContext<String> nullContext = TransactionalContext.of(() -> null);
+        Context<String> nullContext = TransactionalContext.of(() -> null);
 
-        transactionService.inTransaction(() ->
-                assertThrows(NoSuchElementException.class, nullContext::get));
+        transactionService.inTransaction(() -> assertNull(nullContext.get()));
     }
 
     private void checkContext(int transactionLevel) {
@@ -122,6 +122,6 @@ class TransactionalContextIntegrationTest {
         IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> transactionalContext.get());
         check(exception.getMessage()).is("No active transaction");
-        check(TransactionSynchronizationManager.hasResource(transactionalContext)).is(false);
+        check(TransactionSynchronizationManager.getResourceMap().isEmpty()).is(true);
     }
 }

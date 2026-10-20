@@ -10,21 +10,36 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ContextTest {
 
-    private Context<String> context = Context.of();
+    private Context<String> context = Context.required();
 
     @Test
-    void getFailsOutsideScope() {
+    void requiredFailsOutsideScope() {
         IllegalStateException exception = assertThrows(IllegalStateException.class, context::get);
 
         assertThat(exception.getMessage()).isEqualTo("No active scope");
     }
 
     @Test
-    void getFailsWhenNotBound() {
+    void requiredFailsWhenNotBound() {
         NoSuchElementException exception = assertThrows(NoSuchElementException.class,
                 () -> Context.run(context::get));
 
         assertThat(exception.getMessage()).isEqualTo("No value in context");
+    }
+
+    @Test
+    void optionalOfRequiredIsEmptyOutsideScope() {
+        assertThat(context.optional()).isEmpty();
+    }
+
+    @Test
+    void optionalOfRequiredIsEmptyWhenNotBound() {
+        Context.run(() -> assertThat(context.optional()).isEmpty());
+    }
+
+    @Test
+    void optionalOfRequiredHasBoundValue() {
+        Context.where(context, "value").run(() -> assertThat(context.optional()).contains("value"));
     }
 
     @Test
@@ -44,9 +59,9 @@ class ContextTest {
 
     @Test
     void runRestoresPreviousValueOnException() {
-        ContextBindings bindings = Context.where(context, "value");
+        ScopeBuilder builder = Context.where(context, "value");
 
-        assertThrows(UnsupportedOperationException.class, () -> bindings.run(() -> {
+        assertThrows(UnsupportedOperationException.class, () -> builder.run(() -> {
             throw new UnsupportedOperationException();
         }));
 
@@ -55,7 +70,7 @@ class ContextTest {
 
     @Test
     void innerRunKeepsOuterBindings() {
-        Context<Integer> second = Context.of();
+        Context<Integer> second = Context.required();
 
         Context.where(context, "value").run(() ->
                 Context.where(second, 42).run(() -> {
@@ -66,7 +81,7 @@ class ContextTest {
 
     @Test
     void whereBindsSeveralContexts() {
-        Context<Integer> second = Context.of();
+        Context<Integer> second = Context.required();
 
         String result = Context.where(context, "value")
                 .where(second, 42)
@@ -76,8 +91,45 @@ class ContextTest {
     }
 
     @Test
-    void whereReplacesOwnValue() {
-        Context<String> constant = Context.of("value");
+    void whereBindsNull() {
+        Context<String> constant = Context.constant("value");
+
+        Context.where(constant, null).run(() -> {
+            assertThat(constant.get()).isNull();
+            assertThat(constant.optional()).isEmpty();
+        });
+    }
+
+    @Test
+    void whereWithoutValueBindsCurrentValue() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<Integer> counter = Context.of(calls::incrementAndGet);
+
+        Context.where(counter).run(() -> {
+            assertThat(counter.get()).isEqualTo(1);
+            Context.run(() -> assertThat(counter.get()).isEqualTo(1));
+        });
+    }
+
+    @Test
+    void whereWithoutValueKeepsOuterValue() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<Integer> counter = Context.of(calls::incrementAndGet);
+
+        Context.where(counter).run(() ->
+                Context.where(counter).run(() -> assertThat(counter.get()).isEqualTo(1)));
+    }
+
+    @Test
+    void constantWorksOutsideScope() {
+        Context<String> constant = Context.constant("value");
+
+        assertThat(constant.get()).isEqualTo("value");
+    }
+
+    @Test
+    void whereReplacesConstant() {
+        Context<String> constant = Context.constant("value");
 
         Context.where(constant, "other").run(() -> assertThat(constant.get()).isEqualTo("other"));
 
@@ -85,17 +137,13 @@ class ContextTest {
     }
 
     @Test
-    void ofFailsOnNullValue() {
-        String value = null;
+    void constantIsNotCached() {
+        Context<String> constant = Context.constant("value");
 
-        assertThrows(NullPointerException.class, () -> Context.of(value));
-    }
-
-    @Test
-    void constantWorksOutsideScope() {
-        Context<String> constant = Context.of("value");
-
-        assertThat(constant.get()).isEqualTo("value");
+        Context.run(() -> {
+            constant.get();
+            assertThat(Scope.current().contains(constant)).isFalse();
+        });
     }
 
     @Test
@@ -108,15 +156,12 @@ class ContextTest {
     }
 
     @Test
-    void getFailsWhenLambdaReturnsNull() {
-        Context<String> lambda = () -> null;
+    void supplierIsCalledOnEveryReadOutsideScope() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<Integer> counter = Context.of(calls::incrementAndGet);
 
-        assertThrows(NoSuchElementException.class, lambda::get);
-    }
-
-    @Test
-    void whereFailsOnNullValue() {
-        assertThrows(NullPointerException.class, () -> Context.where(context, null));
+        assertThat(counter.get()).isEqualTo(1);
+        assertThat(counter.get()).isEqualTo(2);
     }
 
     @Test
@@ -144,20 +189,41 @@ class ContextTest {
     }
 
     @Test
-    void supplierReadsOtherContext() {
+    void innerScopeRecomputesValueWithRebindDependency() {
         Context<Integer> length = Context.of(() -> context.get().length());
 
-        Context.where(context, "value").run(() -> assertThat(length.get()).isEqualTo(5));
+        Context.where(context, "value").run(() -> {
+            assertThat(length.get()).isEqualTo(5);
+            Context.where(context, "ab").run(() -> assertThat(length.get()).isEqualTo(2));
+        });
     }
 
     @Test
-    void getFailsWhenSupplierReturnsNull() {
-        Context<String> nullContext = Context.of(() -> null);
+    void nullFromSupplierIsCached() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<String> nullContext = Context.of(() -> {
+            calls.incrementAndGet();
+            return null;
+        });
 
-        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
-                () -> Context.run(nullContext::get));
+        Context.run(() -> {
+            assertThat(nullContext.get()).isNull();
+            assertThat(nullContext.get()).isNull();
+        });
 
-        assertThat(exception.getMessage()).isEqualTo("No value in context");
+        assertThat(calls.get()).isEqualTo(1);
+    }
+
+    @Test
+    void dynamicIsCalledOnEveryRead() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<Integer> dynamic = Context.dynamic(calls::incrementAndGet);
+
+        Context.run(() -> {
+            assertThat(dynamic.get()).isEqualTo(1);
+            assertThat(dynamic.get()).isEqualTo(2);
+            Context.where(dynamic, 42).run(() -> assertThat(dynamic.get()).isEqualTo(42));
+        });
     }
 
     @Test
@@ -171,16 +237,5 @@ class ContextTest {
             Context.where(mapped, "bound")
                     .run(() -> assertThat(mapped.get()).isEqualTo("bound"));
         });
-    }
-
-    @Test
-    void mapFailsWhenMapperReturnsNull() {
-        Context<String> mapped = context.map(value -> null);
-        ContextBindings bindings = Context.where(context, "value");
-
-        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
-                () -> bindings.run(mapped::get));
-
-        assertThat(exception.getMessage()).isEqualTo("No value in context");
     }
 }

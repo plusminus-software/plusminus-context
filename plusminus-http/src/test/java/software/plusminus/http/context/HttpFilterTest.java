@@ -12,6 +12,7 @@ import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import software.plusminus.context.Context;
+import software.plusminus.http.context.fixtures.TestDispatchInterceptor;
 import software.plusminus.http.context.fixtures.TestScopeListener;
 import software.plusminus.scope.events.ScopeCompletedEvent;
 import software.plusminus.scope.events.ScopeFailedEvent;
@@ -19,6 +20,7 @@ import software.plusminus.scope.events.ScopeFinalizedEvent;
 import software.plusminus.scope.events.ScopeStartedEvent;
 
 import java.util.concurrent.TimeUnit;
+import javax.servlet.DispatcherType;
 import javax.servlet.http.HttpServletRequest;
 
 import static org.awaitility.Awaitility.await;
@@ -39,6 +41,8 @@ class HttpFilterTest {
     private Context<HttpServletRequest> requestContext;
     @SpyBean
     private TestScopeListener listener;
+    @Autowired
+    private TestDispatchInterceptor dispatchInterceptor;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -103,5 +107,31 @@ class HttpFilterTest {
         check(response).is("async");
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
                 verify(listener).finalized(any(ScopeFinalizedEvent.class)));
+    }
+
+    @Test
+    void requestContextInAsyncDispatch() {
+        String url = "http://localhost:" + port + "/async";
+        dispatchInterceptor.getRequestBound().clear();
+
+        restTemplate.getForObject(url, String.class);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            check(dispatchInterceptor.getRequestBound().get(DispatcherType.REQUEST)).is(true);
+            check(dispatchInterceptor.getRequestBound().get(DispatcherType.ASYNC)).is(true);
+        });
+    }
+
+    @Test
+    void requestContextInErrorDispatch() {
+        String url = "http://localhost:" + port + "/exception";
+        dispatchInterceptor.getRequestBound().clear();
+
+        restTemplate.getForEntity(url, Object.class);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            check(dispatchInterceptor.getRequestBound().get(DispatcherType.REQUEST)).is(true);
+            check(dispatchInterceptor.getRequestBound().get(DispatcherType.ERROR)).is(true);
+        });
     }
 }

@@ -1,73 +1,54 @@
 package software.plusminus.context;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
-final class Scope implements AutoCloseable {
+/**
+ * Values of contexts for the current thread.
+ *
+ * <p>A scope has two kinds of values: bound values from {@link ScopeBuilder#where} and cached values
+ * from {@link #set}. Inner scopes and snapshots get only bound values.
+ */
+interface Scope {
 
-    private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
+    <T> boolean contains(Context<T> context);
 
-    private final Scope outer = CURRENT.get();
-    private final Map<Context<?>, Object> bound = new HashMap<>();
-    private final Map<Context<?>, Object> saved = new HashMap<>();
+    @Nullable
+    <T> T get(Context<T> context);
 
-    private Scope() {
+    /**
+     * Caches the value in this scope only.
+     */
+    <T> void set(Context<T> context, @Nullable T value);
+
+    @Nullable
+    static Scope current() {
+        return ThreadLocalScope.CURRENT.get();
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> T save(Context<? extends T> context, Supplier<? extends T> supplier) {
-        Object value = saved.get(context);
-        if (value == null) {
-            value = supplier.get();
-            if (value != null) {
-                saved.put(context, value);
-            }
-        }
-        return (T) value;
-    }
-
-    @Override
-    public void close() {
-        if (outer == null) {
-            CURRENT.remove();
-        } else {
-            CURRENT.set(outer);
+    /**
+     * Runs the body in a new inner scope with the given bound values.
+     */
+    static <R> R call(Map<Context<?>, Object> bindings, Supplier<R> body) {
+        try (ThreadLocalScope ignored = ThreadLocalScope.open(bindings)) {
+            return body.get();
         }
     }
 
-    static Scope open(Map<Context<?>, Object> bound) {
-        Scope scope = new Scope();
-        if (scope.outer != null) {
-            scope.bound.putAll(scope.outer.bound);
+    /**
+     * Runs the body in a new inner scope with the given bound values.
+     */
+    static <R> R call(Map<Context<?>, Object> bindings, Callable<R> body) throws Exception {
+        try (ThreadLocalScope ignored = ThreadLocalScope.open(bindings)) {
+            return body.call();
         }
-        scope.bound.putAll(bound);
-        CURRENT.set(scope);
-        return scope;
     }
 
     static Snapshot snapshot() {
-        return current()
-                .map(scope -> new Snapshot(new HashMap<>(scope.bound)))
-                .orElseGet(() -> new Snapshot(Collections.emptyMap()));
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T> T getBoundValue(Context<T> context) {
-        return (T) current()
-                .map(scope -> scope.bound.get(context))
-                .orElse(null);
-    }
-
-    static <T> T getSavedValue(Context<T> context, Supplier<? extends T> supplier) {
-        return current()
-                .orElseThrow(() -> new IllegalStateException("No active scope"))
-                .save(context, supplier);
-    }
-
-    private static Optional<Scope> current() {
-        return Optional.ofNullable(CURRENT.get());
+        ThreadLocalScope scope = ThreadLocalScope.CURRENT.get();
+        return new Snapshot(scope == null ? Collections.emptyMap() : scope.bindings());
     }
 }

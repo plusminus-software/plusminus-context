@@ -3,15 +3,14 @@ package software.plusminus.context;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 
-import java.util.function.Supplier;
-
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
-public final class ScopedContext<T> implements Context<T> {
+class ConstantContext<T> implements UncachedContext<T> {
 
-    private final Supplier<T> supplier;
+    private final T constant;
 
     @Override
     public T supply() {
-        return Scope.getSavedValue(this, supplier);
+        return constant;
     }
+
 }

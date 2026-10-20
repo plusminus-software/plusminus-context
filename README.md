@@ -6,8 +6,8 @@ Plusminus Context is a small set of Spring-friendly libraries for passing
 cross-cutting values (current HTTP request, handler, transaction-bound objects,
 etc.) through your application without threading them through method
 signatures. The core abstraction is `Context<T>` — a typed, read-only holder. A value is bound only for the
-duration of a block of code, like `java.lang.ScopedValue`, and `get()` never
-returns `null`.
+duration of a block of code, like `java.lang.ScopedValue`. When nothing is
+bound, the context gives its own value.
 
 ## Modules
 
@@ -16,16 +16,16 @@ returns `null`.
 | `plusminus-context` | Core abstractions: `Context<T>`, `Context.where(...).run(...)` to bind values, `Context.snapshot()` and a `ContextPropagationTaskDecorator` to pass values to other threads.  |
 | `plusminus-scope` | `ScopeRunner` and `AroundScope` for wrapping a unit of work, publishing Spring application events (`ScopeStartedEvent`, `ScopeCompletedEvent`, `ScopeFailedEvent`, `ScopeFinalizedEvent` and their invocation counterparts). |
 | `plusminus-http` | Servlet integration: `HttpFilter` runs each request as a scope and binds `HttpServletRequest`/`HttpServletResponse` contexts; `HttpInterceptor` exposes handler contexts and publishes invocation events. Beans are provided by `HttpContextAutoconfig`. |
-| `plusminus-transactional` | `TransactionalContext<T>` whose values live for the duration of the current transaction, stored as a `TransactionSynchronizationManager` resource. |
+| `plusminus-transactional` | `TransactionalContext.of(supplier)` creates a context whose values live for the duration of the current transaction, stored as a `TransactionSynchronizationManager` resource. |
 
 ## Working with contexts
 
-A context is read with `get()`. Every context has its own value (or none), and
-a value bound with `where` replaces it. A value is bound for a block of code with
-`Context.where(...)` and is visible anywhere inside that block:
+A context is read with `get()`. A value bound with `where` comes first;
+otherwise the context gives its own value. A value is bound for a block of code
+with `Context.where(...)` and is visible anywhere inside that block:
 
 ```java
-Context<User> user = Context.of();
+Context<User> user = Context.required();
 
 Context.where(user, currentUser).run(() -> {
     User value = user.get();
@@ -42,24 +42,27 @@ String name = Context.where(user, currentUser)
         .call(() -> user.get().getName());
 ```
 
-Blocks can be nested. An inner block sees the values of the outer one and can
-replace them; the outer values are back when the inner block ends.
+Blocks can be nested. An inner block sees the bound values of the outer one and
+can replace them; the outer values are back when the inner block ends.
 
 ### Kinds of contexts
 
-| Created with | Own value | Works outside a block |
+| Created with | Own value | Cached in the block |
 | --- | --- | --- |
-| `Context.of()` | none, so it must be bound with `where` | no |
-| `Context.of(supplier)` | the supplier result, computed once per block | no |
-| `Context.of(value)` | the given value | yes |
-| `context.map(mapper)` | the mapper result, computed on every read | if the source context does |
-| a lambda or a custom class | the result of its `supply()` on every read | yes |
-| `TransactionalContext.of(supplier)` | the supplier result, computed once per transaction | yes, inside a transaction |
+| `Context.required()` | none, so it must be bound with `where` | — |
+| `Context.of(supplier)` | the supplier result | yes |
+| `Context.constant(value)` | the given value | no |
+| `Context.dynamic(supplier)` | the supplier result, computed on every read | no |
+| `context.map(mapper)` | the mapper result, computed on every read | no |
+| a lambda or a custom class | the result of its `supply()` | yes |
+| `TransactionalContext.of(supplier)` | the supplier result, once per transaction | no |
 
 A value bound with `where` always replaces the own value, for every kind of
-context.
+context. Outside a block every context except `Context.required()` works too, but
+nothing is cached: `Context.of(supplier)` calls the supplier on every read.
+
 `Context.run(...)` and `Context.call(...)` open a block without binding anything,
-which is enough for contexts created with a supplier.
+which is enough for cached contexts:
 
 ```java
 Context<Tenant> tenant = Context.of(() -> tenantService.current());
@@ -72,33 +75,38 @@ Context.run(() -> {
 });
 ```
 
-### Bound values and computed values
+### Bound values and cached values
 
 - A value bound with `where` is the same everywhere inside the block: in inner
   blocks and in tasks wrapped with a snapshot.
-- A value computed by a supplier belongs to one block in one thread. An inner
-  block, another thread, or another dispatch of the same HTTP request calls the
-  supplier again and may get a different value.
+- A cached value belongs to one block in one thread. An inner block or another
+  thread calls the supplier again and may get a different value. This keeps
+  values correct when an inner block binds another value that the supplier reads.
 
-So a value that must stay the same, like a request id or the current user, is
-computed once at the entry point and bound with `where`:
+So a value that must stay the same, like a request id, is bound at the entry
+point. `where(context)` binds the current value of the context:
 
 ```java
-Context<UUID> requestId = Context.of();
+Context<UUID> requestId = Context.of(UUID::randomUUID);
 
-Context.where(requestId, UUID.randomUUID()).run(body);
+Context.where(requestId).run(() -> {
+    Context.run(() -> requestId.get());               // the same value
+    executor.submit(Context.snapshot().wrap(task));   // the task sees the same value
+});
 ```
 
-### Missing values
+### Missing values and `null`
 
-`get()` never returns `null`, for any kind of context:
+`null` is a normal value: `where(context, null)` binds it, and `null` from a
+supplier is cached like any other value. `optional()` returns the value as an
+`Optional`.
 
-| Case | Exception |
+| Case | Result |
 | --- | --- |
-| `Context.of()` or `Context.of(supplier)` is read when no block is open | `IllegalStateException("No active scope")` |
-| A transactional context is read outside a transaction | `IllegalStateException("No active transaction")` |
-| Nothing is bound and there is no own value (the supplier, mapper or `supply()` returns `null`) | `NoSuchElementException("No value in context")` |
-| `Context.of(null)` or `where(context, null)` | `NullPointerException` |
+| `Context.required()` is read and no block is open | `IllegalStateException("No active scope")` |
+| `Context.required()` is read in a block and nothing is bound | `NoSuchElementException("No value in context")` |
+| `Context.required().optional()` and nothing is bound | `Optional.empty()` |
+| A transactional context is read outside a transaction and nothing is bound | `IllegalStateException("No active transaction")` |
 
 ### Other threads
 
@@ -108,10 +116,9 @@ Values are not visible in other threads. Take a snapshot and wrap the task:
 executor.submit(Context.snapshot().wrap(task));
 ```
 
-The snapshot holds only the values bound with `where`; values computed by
-suppliers are computed again in the other thread. A task that runs in a thread
-with its own open block also sees the values of that block; the snapshot values
-come first.
+The snapshot holds only the values bound with `where`; cached values are
+computed again in the other thread. A task that runs in a thread with its own
+open block also sees the values of that block; the snapshot values come first.
 
 In a Spring application
 `ContextPropagationTaskDecorator` does this for `@Async` methods and task
@@ -119,10 +126,9 @@ executors, and it is registered automatically.
 
 ### Custom contexts
 
-`Context<T>` is a functional interface with one method to implement, `supply()`.
-It returns the context's own value, or `null` when there is none. Callers never
-call `supply()`; they use `get()`, which first looks for a value bound with
-`where`, then calls `supply()`, and throws when both give nothing:
+`Context<T>` is a functional interface with one method to implement, `supply()`,
+which returns the context's own value. Callers use `get()`, which first looks
+for a value in the block, then calls `supply()` and caches the result:
 
 ```java
 Context<Locale> locale = LocaleContextHolder::getLocale;
@@ -131,20 +137,26 @@ locale.get(); // the current locale
 Context.where(locale, Locale.FRENCH).run(() -> locale.get()); // Locale.FRENCH
 ```
 
+A value that must not be cached, because it can change inside the block, is
+created with `Context.dynamic(supplier)`.
+
+A scope finds a value only by the same context instance, so create each context
+once: as a `static final` field or a Spring bean.
+
 ### Transactional contexts
 
 A transactional context lazily provides one value per active transaction:
 
 ```java
-TransactionalContext<UUID> transactionId = TransactionalContext.of(UUID::randomUUID);
+Context<UUID> transactionId = TransactionalContext.of(UUID::randomUUID);
 UUID current = transactionId.get(); // throws IllegalStateException("No active transaction") outside a transaction
 ```
 
 An inner transaction started with `REQUIRES_NEW` gets its own value, and the
 outer value is back when it ends. A transactional context does not need a block
-but always needs a transaction: a value bound with `where` replaces the
-transaction value inside the block, and reading it outside a transaction still
-throws.
+and is never cached in it. Like any context, a value bound with `where` comes
+first, even outside a transaction; only reading its own value needs a
+transaction.
 
 ### HTTP contexts
 
