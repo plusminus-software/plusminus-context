@@ -69,6 +69,33 @@ class ScopeRunnerTest {
     }
 
     @Test
+    void deferredScopeIsNotFinishedUntilCompleted() {
+        ScopeCompletion completion = scopeRunner.runDeferred(this, () -> { });
+        check(testListener.calls()).is("started");
+
+        completion.complete();
+        completion.complete();
+        check(testListener.calls()).is("started", "completed", "finalized");
+    }
+
+    @Test
+    void deferredScopeCanFailLater() {
+        ScopeCompletion completion = scopeRunner.runDeferred(this, () -> { });
+
+        completion.fail(new IllegalStateException("Async failure"));
+        completion.complete();
+        check(testListener.calls()).is("started", "failed", "finalized");
+    }
+
+    @Test
+    void deferredScopeFailsImmediatelyWhenBodyFails() {
+        assertThrows(RuntimeException.class, () -> scopeRunner.runDeferred(this, () -> {
+            throw new RuntimeException("Test exception");
+        }));
+        check(testListener.calls()).is("started", "failed", "finalized");
+    }
+
+    @Test
     void around() {
         Runnable runnable = mock(Runnable.class);
         ThrowingRunnable throwingRunnable = ThrowingRunnable.of(runnable);

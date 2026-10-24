@@ -59,7 +59,9 @@ can replace them; the outer values are back when the inner block ends.
 
 A value bound with `where` always replaces the own value, for every kind of
 context. Outside a block every context except `Context.required()` works too, but
-nothing is cached: `Context.of(supplier)` calls the supplier on every read.
+nothing is cached: `Context.of(supplier)` calls the supplier on every read. So a
+supplier that must run only once (it opens a connection, creates an id, calls a
+service) must be bound with `where(context)` at the entry point.
 
 `Context.run(...)` and `Context.call(...)` open a block without binding anything,
 which is enough for cached contexts:
@@ -99,13 +101,16 @@ Context.where(requestId).run(() -> {
 
 `null` is a normal value: `where(context, null)` binds it, and `null` from a
 supplier is cached like any other value. `optional()` returns the value as an
-`Optional`.
+`Optional`. It never throws for `Context.required()` and for contexts mapped
+from it; a custom context whose `supply()` throws still throws from
+`optional()`.
 
 | Case | Result |
 | --- | --- |
 | `Context.required()` is read and no block is open | `IllegalStateException("No active scope")` |
 | `Context.required()` is read in a block and nothing is bound | `NoSuchElementException("No value in context")` |
 | `Context.required().optional()` and nothing is bound | `Optional.empty()` |
+| `context.map(mapper).optional()` and the source context is empty | `Optional.empty()` |
 | A transactional context is read outside a transaction and nothing is bound | `IllegalStateException("No active transaction")` |
 
 ### Other threads
@@ -117,12 +122,24 @@ executor.submit(Context.snapshot().wrap(task));
 ```
 
 The snapshot holds only the values bound with `where`; cached values are
-computed again in the other thread. A task that runs in a thread with its own
-open block also sees the values of that block; the snapshot values come first.
+computed again in the other thread. A worker thread usually has no open block,
+so the task sees exactly the snapshot. When the task runs in a thread that
+already has an open block (for example in the caller's thread with
+`CallerRunsPolicy`), it also sees the bound values of that block; the snapshot
+values win when both have the same context.
 
 In a Spring application
 `ContextPropagationTaskDecorator` does this for `@Async` methods and task
-executors, and it is registered automatically.
+executors, and it is registered automatically. It is the primary
+`TaskDecorator`, and it applies your own `TaskDecorator` beans (in their order)
+inside the propagated context. Turn it off with
+`plusminus.context.propagation.enabled=false`.
+
+> **Warning:** with `plusminus-http`, the snapshot also holds the current
+> `HttpServletRequest` and `HttpServletResponse`. A task that runs after the
+> request has ended must not use them: the servlet container reuses these
+> objects for other requests. Copy what the task needs (a header, the user)
+> into its own value before you start it.
 
 ### Custom contexts
 
@@ -138,7 +155,8 @@ Context.where(locale, Locale.FRENCH).run(() -> locale.get()); // Locale.FRENCH
 ```
 
 A value that must not be cached, because it can change inside the block, is
-created with `Context.dynamic(supplier)`.
+created with `Context.dynamic(supplier)`. That is the only way to make an
+uncached context: a custom class or lambda is always cached.
 
 A scope finds a value only by the same context instance, so create each context
 once: as a `static final` field or a Spring bean.
@@ -176,6 +194,12 @@ private Context<HttpServletRequest> request;
 
 String agent = request.get().getHeader("User-Agent");
 ```
+
+For an async request (a controller that returns `Callable` or
+`DeferredResult`), the scope and invocation events cover the whole request:
+`ScopeCompletedEvent`/`ScopeFailedEvent` and `InvocationCompletedEvent`/
+`InvocationFailedEvent` are published when the async result is done, not when
+the first dispatch returns. `AroundScope` beans wrap only the first dispatch.
 
 ## Getting started
 

@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
@@ -20,12 +21,12 @@ public final class ScopeBuilder {
 
     public <T> ScopeBuilder where(Context<T> context, @Nullable T value) {
         Map<Context<?>, Object> result = new HashMap<>(bindings);
-        result.put(context, value);
+        result.put(Objects.requireNonNull(context), value);
         return new ScopeBuilder(result);
     }
 
     public <T> ScopeBuilder where(Context<T> context) {
-        return where(context, context.get());
+        return where(context, Objects.requireNonNull(context).get());
     }
 
     public void run(Runnable body) {

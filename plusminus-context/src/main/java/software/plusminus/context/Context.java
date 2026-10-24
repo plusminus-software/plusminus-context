@@ -1,5 +1,6 @@
 package software.plusminus.context;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -34,11 +35,11 @@ public interface Context<T> {
     }
 
     default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
-        return dynamic(() -> mapper.apply(get()));
+        return new MappedContext<>(this, Objects.requireNonNull(mapper));
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
-        return new SupplierContext<>(supplier);
+        return new SupplierContext<>(Objects.requireNonNull(supplier));
     }
 
     static <T> Context<T> constant(@Nullable T value) {
@@ -46,7 +47,7 @@ public interface Context<T> {
     }
 
     static <T> Context<T> dynamic(Supplier<T> supplier) {
-        return new DynamicContext<>(supplier);
+        return new DynamicContext<>(Objects.requireNonNull(supplier));
     }
 
     static <T> Context<T> required() {

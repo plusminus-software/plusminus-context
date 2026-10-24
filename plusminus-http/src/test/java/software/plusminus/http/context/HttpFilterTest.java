@@ -12,6 +12,7 @@ import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import software.plusminus.context.Context;
+import software.plusminus.http.context.fixtures.TestAsyncProbe;
 import software.plusminus.http.context.fixtures.TestDispatchInterceptor;
 import software.plusminus.http.context.fixtures.TestScopeListener;
 import software.plusminus.scope.events.ScopeCompletedEvent;
@@ -41,6 +42,8 @@ class HttpFilterTest {
     private Context<HttpServletRequest> requestContext;
     @SpyBean
     private TestScopeListener listener;
+    @SpyBean
+    private TestAsyncProbe asyncProbe;
     @Autowired
     private TestDispatchInterceptor dispatchInterceptor;
 
@@ -68,23 +71,7 @@ class HttpFilterTest {
 
     @Test
     void exception() {
-        String url = "http://localhost:" + port + "/exception";
-
-        ResponseEntity<?> response = restTemplate.getForEntity(url, Object.class);
-
-        check(response.getStatusCode()).is(HttpStatus.INTERNAL_SERVER_ERROR);
-        InOrder inOrder = inOrder(listener);
-        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
-            verify(listener, never()).completed(any());
-            inOrder.verify(listener).failed(failedEventCaptor.capture());
-            verify(listener, never()).unknownFailed(any());
-            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
-        });
-        Exception exception = failedEventCaptor.getValue().getException();
-        Class exceptionType = exception.getClass();
-        check(exceptionType).isEqual(IllegalStateException.class);
-        check(exception.getMessage()).is("Test exception");
+        checkFailedScope("/exception", "Test exception");
     }
 
     @Test
@@ -105,8 +92,39 @@ class HttpFilterTest {
         String response = restTemplate.getForObject(url, String.class);
 
         check(response).is("async");
-        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() ->
-                verify(listener).finalized(any(ScopeFinalizedEvent.class)));
+        InOrder inOrder = inOrder(listener, asyncProbe);
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
+            inOrder.verify(asyncProbe).finished();
+            inOrder.verify(listener).completed(any(ScopeCompletedEvent.class));
+            verify(listener, never()).failed(any());
+            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
+        });
+    }
+
+    @Test
+    void asyncException() {
+        checkFailedScope("/async-exception", "Async exception");
+    }
+
+    private void checkFailedScope(String path, String message) {
+        String url = "http://localhost:" + port + path;
+
+        ResponseEntity<?> response = restTemplate.getForEntity(url, Object.class);
+
+        check(response.getStatusCode()).is(HttpStatus.INTERNAL_SERVER_ERROR);
+        InOrder inOrder = inOrder(listener);
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            inOrder.verify(listener).started(any(ScopeStartedEvent.class));
+            verify(listener, never()).completed(any());
+            inOrder.verify(listener).failed(failedEventCaptor.capture());
+            verify(listener, never()).unknownFailed(any());
+            inOrder.verify(listener).finalized(any(ScopeFinalizedEvent.class));
+        });
+        Exception exception = failedEventCaptor.getValue().getException();
+        Class exceptionType = exception.getClass();
+        check(exceptionType).isEqual(IllegalStateException.class);
+        check(exception.getMessage()).is(message);
     }
 
     @Test

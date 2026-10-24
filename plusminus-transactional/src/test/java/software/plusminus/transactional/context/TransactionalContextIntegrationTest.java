@@ -9,6 +9,7 @@ import software.plusminus.transactional.context.fixtures.TransactionService;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static software.plusminus.check.Checks.check;
@@ -108,10 +109,24 @@ class TransactionalContextIntegrationTest {
     }
 
     @Test
-    void nullValue() {
-        Context<String> nullContext = TransactionalContext.of(() -> null);
+    void nullValueIsComputedOncePerTransaction() {
+        AtomicInteger calls = new AtomicInteger();
+        Context<String> nullContext = TransactionalContext.of(() -> {
+            calls.incrementAndGet();
+            return null;
+        });
 
-        transactionService.inTransaction(() -> assertNull(nullContext.get()));
+        transactionService.inTransaction(() -> {
+            assertNull(nullContext.get());
+            assertNull(nullContext.get());
+        });
+
+        assertEquals(1, calls.get());
+    }
+
+    @Test
+    void ofFailsOnNullSupplier() {
+        assertThrows(NullPointerException.class, () -> TransactionalContext.of(null));
     }
 
     private void checkContext(int transactionLevel) {

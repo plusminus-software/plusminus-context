@@ -22,6 +22,17 @@ class ContextIntegrationTest {
                 .run(() -> assertThat(stringContext.get()).isEqualTo("42"));
     }
 
+    @Test
+    void optionalOfMappedBeanIsEmptyOutsideScope() {
+        assertThat(stringContext.optional()).isEmpty();
+    }
+
+    @Test
+    void optionalOfMappedBeanHasValue() {
+        Context.where(integerContext, 42)
+                .run(() -> assertThat(stringContext.optional()).contains("42"));
+    }
+
     @Configuration
     static class TestConfig {
         @Bean

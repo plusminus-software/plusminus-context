@@ -18,6 +18,7 @@ public class TestController {
     private Context<HttpServletResponse> response;
     private Context<Object> handler;
     private Context<HandlerMethod> handlerMethod;
+    private TestAsyncProbe asyncProbe;
 
     @GetMapping("/ok")
     public String ok() {
@@ -37,6 +38,16 @@ public class TestController {
 
     @GetMapping("/async")
     public Callable<String> async() {
-        return () -> "async";
+        return () -> {
+            asyncProbe.finished();
+            return "async";
+        };
+    }
+
+    @GetMapping("/async-exception")
+    public Callable<String> asyncException() {
+        return () -> {
+            throw new IllegalStateException("Async exception");
+        };
     }
 }

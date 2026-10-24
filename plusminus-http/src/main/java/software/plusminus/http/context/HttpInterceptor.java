@@ -43,7 +43,8 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
             try {
                 eventPublisher.publishEvent(event);
             } catch (RuntimeException e) {
-                eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
+                publishAfterFailure(new InvocationFailedEvent<>(handler, e), e);
+                publishAfterFailure(new InvocationFinalizedEvent<>(handler), e);
                 throw e;
             }
             if (event.isIntercepted()) {
@@ -57,7 +58,7 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     @Override
     public void postHandle(HttpServletRequest request, HttpServletResponse response,
                            Object handler, ModelAndView modelAndView) {
-        if (request.getDispatcherType() != DispatcherType.REQUEST) {
+        if (!endsInvocation(request)) {
             return;
         }
         eventPublisher.publishEvent(new InvocationCompletedEvent<>(handler, modelAndView));
@@ -66,7 +67,7 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) {
-        if (request.getDispatcherType() != DispatcherType.REQUEST) {
+        if (!endsInvocation(request)) {
             return;
         }
         if (ex != null) {
@@ -74,5 +75,22 @@ public class HttpInterceptor implements HandlerInterceptor, WebMvcConfigurer {
             eventPublisher.publishEvent(new InvocationFailedEvent<>(handler, extractedException));
         }
         eventPublisher.publishEvent(new InvocationFinalizedEvent<>(handler));
+    }
+
+    /**
+     * An invocation starts on the REQUEST dispatch. Spring MVC ends it on the same dispatch, or on the
+     * ASYNC dispatch when the handler returned an async result.
+     */
+    private static boolean endsInvocation(HttpServletRequest request) {
+        DispatcherType type = request.getDispatcherType();
+        return type == DispatcherType.REQUEST || type == DispatcherType.ASYNC;
+    }
+
+    private void publishAfterFailure(Object event, RuntimeException failure) {
+        try {
+            eventPublisher.publishEvent(event);
+        } catch (RuntimeException e) {
+            failure.addSuppressed(e);
+        }
     }
 }

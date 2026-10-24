@@ -1,6 +1,6 @@
 package software.plusminus.context;
 
-public interface UncachedContext<T> extends Context<T> {
+interface UncachedContext<T> extends Context<T> {
 
     @Override
     default T get() {

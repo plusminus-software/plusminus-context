@@ -238,4 +238,54 @@ class ContextTest {
                     .run(() -> assertThat(mapped.get()).isEqualTo("bound"));
         });
     }
+
+    @Test
+    void optionalOfMappedIsEmptyOutsideScope() {
+        Context<String> mapped = context.map(value -> value + "!");
+
+        assertThat(mapped.optional()).isEmpty();
+    }
+
+    @Test
+    void optionalOfMappedIsEmptyWhenSourceNotBound() {
+        Context<String> mapped = context.map(value -> value + "!");
+
+        Context.run(() -> assertThat(mapped.optional()).isEmpty());
+    }
+
+    @Test
+    void optionalOfMappedHasMappedValue() {
+        Context<String> mapped = context.map(value -> value + "!");
+
+        Context.where(context, "value").run(() -> assertThat(mapped.optional()).contains("value!"));
+    }
+
+    @Test
+    void optionalOfMappedHasBoundValue() {
+        Context<String> mapped = context.map(value -> value + "!");
+
+        Context.where(mapped, "bound").run(() -> assertThat(mapped.optional()).contains("bound"));
+    }
+
+    @Test
+    void optionalOfMappedTwiceIsEmptyOutsideScope() {
+        Context<Integer> mapped = context.map(String::length).map(length -> length * 2);
+
+        assertThat(mapped.optional()).isEmpty();
+    }
+
+    @Test
+    void factoriesFailOnNullArguments() {
+        assertThrows(NullPointerException.class, () -> Context.of(null));
+        assertThrows(NullPointerException.class, () -> Context.dynamic(null));
+        assertThrows(NullPointerException.class, () -> context.map(null));
+    }
+
+    @Test
+    void whereFailsOnNullContext() {
+        Context<String> nullContext = null;
+
+        assertThrows(NullPointerException.class, () -> Context.where(nullContext, "value"));
+        assertThrows(NullPointerException.class, () -> Context.where(nullContext));
+    }
 }
