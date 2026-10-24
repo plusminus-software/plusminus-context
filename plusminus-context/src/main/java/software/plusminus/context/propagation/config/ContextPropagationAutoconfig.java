@@ -1,60 +1,54 @@
 package software.plusminus.context.propagation.config;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Condition;
-import org.springframework.context.annotation.ConditionContext;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskDecorator;
-import org.springframework.core.type.AnnotatedTypeMetadata;
-import software.plusminus.context.Context;
 import software.plusminus.context.propagation.ContextPropagationTaskDecorator;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Configuration
-@Conditional(ContextPropagationAutoconfig.OnNoTaskDecoratorComposition.class)
+@ConditionalOnProperty(name = "plusminus.context.propagation.enabled", matchIfMissing = true)
 public class ContextPropagationAutoconfig {
 
     @Bean
-    @ConditionalOnMissingBean(TaskDecorator.class)
-    public TaskDecorator contextPropagationTaskDecorator(ObjectProvider<Context<?>> contexts) {
-        return new ContextPropagationTaskDecorator(contexts.stream().collect(Collectors.toList()));
+    @Primary
+    public ContextPropagationTaskDecorator contextPropagationTaskDecorator(ObjectProvider<TaskDecorator> decorators) {
+        return new ContextPropagationTaskDecorator(new OtherDecorators(decorators));
     }
 
-    @Bean
-    public static BeanPostProcessor taskDecoratorPropagationPostProcessor(ObjectProvider<Context<?>> contexts) {
-        return new BeanPostProcessor() {
-            @Override
-            public Object postProcessAfterInitialization(Object bean, String beanName) {
-                if (bean instanceof TaskDecorator && !(bean instanceof ContextPropagationTaskDecorator)) {
-                    return new ContextPropagationTaskDecorator(
-                            contexts.stream().collect(Collectors.toList()), (TaskDecorator) bean);
-                }
-                return bean;
-            }
-        };
-    }
+    private static final class OtherDecorators implements TaskDecorator {
 
-    @Bean
-    public SmartInitializingSingleton taskDecoratorDuplicationCheck(ObjectProvider<TaskDecorator> decorators) {
-        return () -> {
-            if (decorators.stream().count() > 1 && decorators.getIfUnique() == null) {
-                throw new IllegalStateException("Multiple TaskDecorator beans without a @Primary one are found: "
-                        + "Spring Boot silently ignores all of them in this case. "
-                        + "Mark one as @Primary or leave a single TaskDecorator bean");
-            }
-        };
-    }
+        private final ObjectProvider<TaskDecorator> decorators;
+        private volatile List<TaskDecorator> resolved;
 
-    static class OnNoTaskDecoratorComposition implements Condition {
+        private OtherDecorators(ObjectProvider<TaskDecorator> decorators) {
+            this.decorators = decorators;
+        }
+
         @Override
-        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            return !TaskDecoratorComposition.supported();
+        public Runnable decorate(Runnable task) {
+            List<TaskDecorator> list = resolve();
+            Runnable result = task;
+            for (int i = list.size() - 1; i >= 0; i--) {
+                result = list.get(i).decorate(result);
+            }
+            return result;
+        }
+
+        private List<TaskDecorator> resolve() {
+            List<TaskDecorator> result = resolved;
+            if (result == null) {
+                result = decorators.orderedStream()
+                        .filter(decorator -> !(decorator instanceof ContextPropagationTaskDecorator))
+                        .collect(Collectors.toList());
+                resolved = result;
+            }
+            return result;
         }
     }
 }

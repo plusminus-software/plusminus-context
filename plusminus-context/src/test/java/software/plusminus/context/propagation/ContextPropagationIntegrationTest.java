@@ -1,109 +1,174 @@
 package software.plusminus.context.propagation;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import org.springframework.core.Ordered;
 import org.springframework.core.task.TaskDecorator;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import software.plusminus.context.WritableContext;
+import software.plusminus.context.Context;
 import software.plusminus.context.propagation.config.ContextPropagationAutoconfig;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(classes = {ContextPropagationAutoconfig.class, ContextPropagationIntegrationTest.TestConfig.class})
 class ContextPropagationIntegrationTest {
 
-    @Autowired
-    private TaskDecorator decorator;
-    @Autowired
-    private WritableContext<String> testContext;
+    private static final Context<String> TEST_CONTEXT = Context.required();
+
+    private ApplicationContextRunner runner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(
+                    ContextPropagationAutoconfig.class, TaskExecutionAutoConfiguration.class));
 
     @Test
-    void propagatesContextThroughTaskExecutor() throws Exception {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setTaskDecorator(decorator);
-        executor.initialize();
-        testContext.set("value");
-        AtomicReference<String> seenByWorker = new AtomicReference<>();
-
-        executor.submit(() -> seenByWorker.set(testContext.get())).get();
-
-        assertThat(seenByWorker.get()).isEqualTo("value");
-        executor.shutdown();
+    void propagatesContextThroughExecute() {
+        runner.run(context -> assertThat(seenByExecutor(context)).containsExactly("task:value"));
     }
 
     @Test
-    void wrapsCustomTaskDecoratorWithPropagation() {
-        new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class))
-                .withUserConfiguration(TestConfig.class, CustomDecoratorConfig.class)
-                .run(context -> {
-                    WritableContext<String> customContext = context.getBean(WritableContext.class);
-                    customContext.set("value");
-                    AtomicReference<String> seenByWorker = new AtomicReference<>();
-
-                    Thread thread = new Thread(context.getBean(TaskDecorator.class)
-                            .decorate(() -> seenByWorker.set(customContext.get())));
-                    thread.start();
-                    thread.join();
-
-                    assertThat(seenByWorker.get()).isEqualTo("value");
-                });
+    void appliesUserDecoratorsInsidePropagatedContext() {
+        runner.withUserConfiguration(UserDecoratorsConfig.class).run(context -> {
+            assertThat(context).hasSingleBean(FirstDecorator.class);
+            assertThat(context).hasSingleBean(SecondDecorator.class);
+            assertThat(seenByExecutor(context))
+                    .containsExactly("first:value", "second:value", "task:value");
+        });
     }
 
     @Test
-    void failsOnMultipleTaskDecoratorsWithoutPrimary() {
-        new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class))
-                .withUserConfiguration(CustomDecoratorConfig.class, SecondDecoratorConfig.class)
-                .run(context -> assertThat(context).hasFailed());
+    void propagatesContextToAsyncMethod() {
+        runner.withUserConfiguration(AsyncConfig.class).run(context -> {
+            AsyncService service = context.getBean(AsyncService.class);
+
+            Context.where(TEST_CONTEXT, "value").run(service::read);
+
+            assertThat(service.latch().await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(service.seen()).containsExactly("value");
+        });
     }
 
     @Test
-    void startsOnMultipleTaskDecoratorsWithPrimary() {
-        new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(ContextPropagationAutoconfig.class))
-                .withUserConfiguration(CustomDecoratorConfig.class, PrimaryDecoratorConfig.class)
-                .run(context -> assertThat(context).hasNotFailed());
+    void canBeDisabled() {
+        runner.withPropertyValues("plusminus.context.propagation.enabled=false")
+                .run(context -> assertThat(context).doesNotHaveBean(ContextPropagationTaskDecorator.class));
     }
 
-    @Configuration
-    static class TestConfig {
-        @Bean
-        WritableContext<String> testContext() {
-            return WritableContext.of();
+    private static List<String> seenByExecutor(ApplicationContext context) throws InterruptedException {
+        ThreadPoolTaskExecutor executor = context.getBean("applicationTaskExecutor", ThreadPoolTaskExecutor.class);
+        List<String> events = context.getBeanProvider(Events.class).getIfAvailable(Events::new).list;
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Context.where(TEST_CONTEXT, "value").run(() -> executor.execute(() -> {
+            events.add("task:" + read());
+            latch.countDown();
+        }));
+
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue();
+        return events;
+    }
+
+    private static String read() {
+        return TEST_CONTEXT.optional().orElse("none");
+    }
+
+    static class Events {
+        private final List<String> list = new CopyOnWriteArrayList<>();
+    }
+
+    static class RecordingDecorator implements TaskDecorator, Ordered {
+
+        private final String name;
+        private final int order;
+        private final Events events;
+
+        RecordingDecorator(String name, int order, Events events) {
+            this.name = name;
+            this.order = order;
+            this.events = events;
+        }
+
+        @Override
+        public Runnable decorate(Runnable task) {
+            return () -> {
+                events.list.add(name + ":" + read());
+                task.run();
+            };
+        }
+
+        @Override
+        public int getOrder() {
+            return order;
+        }
+    }
+
+    static class FirstDecorator extends RecordingDecorator {
+        FirstDecorator(Events events) {
+            super("first", 1, events);
+        }
+    }
+
+    static class SecondDecorator extends RecordingDecorator {
+        SecondDecorator(Events events) {
+            super("second", 2, events);
         }
     }
 
     @Configuration
-    static class CustomDecoratorConfig {
+    static class UserDecoratorsConfig {
+
         @Bean
-        TaskDecorator customTaskDecorator() {
-            return runnable -> runnable;
+        Events events() {
+            return new Events();
+        }
+
+        @Bean
+        SecondDecorator secondDecorator(Events events) {
+            return new SecondDecorator(events);
+        }
+
+        @Bean
+        FirstDecorator firstDecorator(Events events) {
+            return new FirstDecorator(events);
+        }
+    }
+
+    static class AsyncService {
+
+        private final List<String> seen = new CopyOnWriteArrayList<>();
+        private final CountDownLatch latch = new CountDownLatch(1);
+
+        @Async
+        public void read() {
+            seen.add(ContextPropagationIntegrationTest.read());
+            latch.countDown();
+        }
+
+        public List<String> seen() {
+            return seen;
+        }
+
+        public CountDownLatch latch() {
+            return latch;
         }
     }
 
     @Configuration
-    static class SecondDecoratorConfig {
-        @Bean
-        TaskDecorator secondTaskDecorator() {
-            return runnable -> runnable;
-        }
-    }
+    @EnableAsync
+    static class AsyncConfig {
 
-    @Configuration
-    static class PrimaryDecoratorConfig {
         @Bean
-        @Primary
-        TaskDecorator primaryTaskDecorator() {
-            return runnable -> runnable;
+        AsyncService asyncService() {
+            return new AsyncService();
         }
     }
 }

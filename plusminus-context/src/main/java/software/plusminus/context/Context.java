@@ -1,34 +1,76 @@
 package software.plusminus.context;
 
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
+/**
+ * A key for a value in the current scope.
+ *
+ * <p>A scope finds a value only by the same context instance, so create each context once:
+ * as a {@code static final} field or a Spring bean.
+ */
+@FunctionalInterface
 public interface Context<T> {
 
-    T get();
+    T supply();
+
+    default T get() {
+        Scope scope = Scope.current();
+        if (scope == null) {
+            return supply();
+        }
+        if (scope.contains(this)) {
+            return scope.get(this);
+        }
+        T value = supply();
+        scope.set(this, value);
+        return value;
+    }
 
     default Optional<T> optional() {
         return Optional.ofNullable(get());
     }
 
-    static <T> Context<T> constant(T value) {
-        return new ConstantContext<>(value);
-    }
-
-    static <T> Context<T> of(T initialValue) {
-        return of(initialValue, false);
-    }
-
-    static <T> Context<T> of(T initialValue, boolean inheritable) {
-        return of(() -> initialValue, inheritable);
+    default <R> Context<R> map(Function<? super T, ? extends R> mapper) {
+        return new MappedContext<>(this, Objects.requireNonNull(mapper));
     }
 
     static <T> Context<T> of(Supplier<T> supplier) {
-        return of(supplier, false);
+        return new SupplierContext<>(Objects.requireNonNull(supplier));
     }
 
-    static <T> Context<T> of(Supplier<T> supplier, boolean inheritable) {
-        ThreadLocal<T> threadLocal = ThreadLocalUtil.createThreadLocal(supplier, inheritable);
-        return new ThreadLocalContext<>(threadLocal);
+    static <T> Context<T> constant(@Nullable T value) {
+        return new ConstantContext<>(value);
+    }
+
+    static <T> Context<T> dynamic(Supplier<T> supplier) {
+        return new DynamicContext<>(Objects.requireNonNull(supplier));
+    }
+
+    static <T> Context<T> required() {
+        return new RequiredContext<>();
+    }
+
+    static <T> ScopeBuilder where(Context<T> context, @Nullable T value) {
+        return new ScopeBuilder().where(context, value);
+    }
+
+    static <T> ScopeBuilder where(Context<T> context) {
+        return new ScopeBuilder().where(context);
+    }
+
+    static void run(Runnable body) {
+        new ScopeBuilder().run(body);
+    }
+
+    static <R> R call(Supplier<R> body) {
+        return new ScopeBuilder().call(body);
+    }
+
+    static Snapshot snapshot() {
+        return Scope.snapshot();
     }
 }

@@ -1,16 +1,16 @@
 package software.plusminus.context;
 
-public class ConstantContext<T> implements Context<T> {
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 
-    private T value;
+@AllArgsConstructor(access = AccessLevel.PACKAGE)
+class ConstantContext<T> implements UncachedContext<T> {
 
-    public ConstantContext(T value) {
-        this.value = value;
-    }
+    private final T constant;
 
     @Override
-    public T get() {
-        return value;
+    public T supply() {
+        return constant;
     }
 
 }

@@ -1,66 +1,68 @@
 package software.plusminus.transactional.context;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import software.plusminus.context.Context;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 
-public interface TransactionalContext<T> {
+public final class TransactionalContext {
 
-    ThreadLocal<List<Map<TransactionalContext<?>, Object>>> CONTEXT = ThreadLocal.withInitial(ArrayList::new);
-
-    default T get() {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()
-                || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("No active transaction");
-        }
-        List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
-        if (transactions.isEmpty()) {
-            throw new IllegalStateException("Cannot get transaction context");
-        }
-        Map<TransactionalContext<?>, Object> values = transactions.get(transactions.size() - 1);
-        return (T) values.computeIfAbsent(this, self -> provide());
+    private TransactionalContext() {
     }
 
-    T provide();
-
-    static <T> TransactionalContext<T> of(Supplier<T> provider) {
-        return new SimpleTransactionalContext<>(provider);
+    /**
+     * Creates a context with one value per active transaction. The value is not cached in the scope,
+     * and a value bound with {@code where} replaces it even outside a transaction.
+     */
+    public static <T> Context<T> of(Supplier<? extends T> supplier) {
+        return Context.dynamic(new TransactionalSupplier<>(Objects.requireNonNull(supplier)));
     }
 
-    @SuppressWarnings("PMD.CompareObjectsWithEquals")
-    static void onNewTransaction() {
-        List<Map<TransactionalContext<?>, Object>> transactions = CONTEXT.get();
-        Map<TransactionalContext<?>, Object> transaction = new HashMap<>();
-        transactions.add(transaction);
-        try {
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    private static final class TransactionalSupplier<T> implements Supplier<T> {
+
+        private static final Object NULL = new Object();
+
+        private final Supplier<? extends T> supplier;
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public T get() {
+            if (!TransactionSynchronizationManager.isSynchronizationActive()
+                    || !TransactionSynchronizationManager.isActualTransactionActive()) {
+                throw new IllegalStateException("No active transaction");
+            }
+            Object resource = TransactionSynchronizationManager.getResource(this);
+            if (resource == null) {
+                T value = supplier.get();
+                bind(value == null ? NULL : value);
+                return value;
+            }
+            return resource == NULL ? null : (T) resource;
+        }
+
+        private void bind(Object value) {
+            TransactionSynchronizationManager.bindResource(this, value);
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
+                public void suspend() {
+                    TransactionSynchronizationManager.unbindResource(TransactionalSupplier.this);
+                }
+
+                @Override
+                public void resume() {
+                    TransactionSynchronizationManager.bindResource(TransactionalSupplier.this, value);
+                }
+
+                @Override
                 public void afterCompletion(int status) {
-                    List<Map<TransactionalContext<?>, Object>> current = CONTEXT.get();
-                    // Remove exactly the frame this synchronization owns (by identity), so an
-                    // out-of-order completion cannot pop a sibling transaction's frame.
-                    for (int i = current.size() - 1; i >= 0; i--) {
-                        if (current.get(i) == transaction) {
-                            current.remove(i);
-                            break;
-                        }
-                    }
-                    if (current.isEmpty()) {
-                        CONTEXT.remove();
-                    }
+                    TransactionSynchronizationManager.unbindResourceIfPossible(TransactionalSupplier.this);
                 }
             });
-        } catch (RuntimeException e) {
-            transactions.remove(transactions.size() - 1);
-            if (transactions.isEmpty()) {
-                CONTEXT.remove();
-            }
-            throw e;
         }
     }
 }
