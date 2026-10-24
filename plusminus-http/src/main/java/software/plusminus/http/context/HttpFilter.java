@@ -41,7 +41,10 @@ public class HttpFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) {
-        ThrowingRunnable chain = () -> filterChain.doFilter(request, response);
+        ThrowingRunnable chain = () -> filterChain.doFilter(
+                httpServletRequestContext.get(),
+                httpServletResponseContext.get()
+        );
         DispatcherType dispatcherType = request.getDispatcherType();
         Context.where(httpServletRequestContext, request)
                 .where(httpServletResponseContext, response)
@@ -51,7 +54,7 @@ public class HttpFilter extends OncePerRequestFilter {
                     } else if (dispatcherType == DispatcherType.ASYNC) {
                         runAsyncDispatch(request, chain);
                     } else {
-                        chain.asRunnable().run();
+                        scopeRunner.around(this, chain);
                     }
                 });
     }
@@ -68,7 +71,7 @@ public class HttpFilter extends OncePerRequestFilter {
     @SuppressWarnings("PMD.AvoidCatchingThrowable")
     private void runAsyncDispatch(HttpServletRequest request, ThrowingRunnable chain) {
         try {
-            chain.asRunnable().run();
+            scopeRunner.around(this, chain);
         } catch (Throwable t) {
             request.setAttribute(ASYNC_FAILURE, t);
             throw t;

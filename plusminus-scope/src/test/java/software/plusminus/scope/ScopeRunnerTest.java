@@ -111,6 +111,20 @@ class ScopeRunnerTest {
     }
 
     @Test
+    void aroundWithoutEvents() {
+        Runnable runnable = mock(Runnable.class);
+
+        scopeRunner.around(this, ThrowingRunnable.of(runnable));
+
+        InOrder inOrder = Mockito.inOrder(firstAroundScope, secondAroundScope);
+        inOrder.verify(firstAroundScope).around(any());
+        inOrder.verify(secondAroundScope).around(any());
+        verify(notSupportedAroundScope, never()).around(any());
+        verify(runnable).run();
+        check(testListener.calls()).isEmpty();
+    }
+
+    @Test
     void failedStartListenerIsFinalized() {
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
         doThrow(new IllegalStateException("start")).when(publisher).publishEvent(any(ScopeStartedEvent.class));

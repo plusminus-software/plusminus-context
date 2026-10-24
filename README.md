@@ -199,7 +199,8 @@ For an async request (a controller that returns `Callable` or
 `DeferredResult`), the scope and invocation events cover the whole request:
 `ScopeCompletedEvent`/`ScopeFailedEvent` and `InvocationCompletedEvent`/
 `InvocationFailedEvent` are published when the async result is done, not when
-the first dispatch returns. `AroundScope` beans wrap only the first dispatch.
+the first dispatch returns. `AroundScope` beans wrap every dispatch of the request (REQUEST, ASYNC and
+ERROR), so they can run more than once per request; the scope events are published once.
 
 ## Getting started
 

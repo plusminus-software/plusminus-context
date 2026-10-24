@@ -37,12 +37,16 @@ public class ScopeRunner {
         Completion completion = new Completion(exceptionsToExtract);
         try {
             eventPublisher.publishEvent(new ScopeStartedEvent());
-            AroundScope.around(arounds, source, scope.asRunnable()).run();
+            around(source, scope);
         } catch (Throwable t) {
             completion.fail(t);
             throw t;
         }
         return completion;
+    }
+
+    public void around(Object source, ThrowingRunnable body) {
+        AroundScope.around(arounds, source, body.asRunnable()).run();
     }
 
     private final class Completion implements ScopeCompletion {

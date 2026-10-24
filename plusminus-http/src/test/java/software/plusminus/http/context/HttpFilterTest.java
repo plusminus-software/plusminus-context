@@ -86,6 +86,40 @@ class HttpFilterTest {
     }
 
     @Test
+    void requestReplacedByAroundScopeReachesControllerAndContext() {
+        String url = "http://localhost:" + port + "/wrapped";
+
+        String response = restTemplate.getForObject(url, String.class);
+
+        check(response).is("TestWrappedRequest TestWrappedRequest");
+    }
+
+    @Test
+    void aroundScopeAppliesToAsyncDispatch() {
+        dispatchInterceptor.getRequestClass().clear();
+
+        String response = restTemplate.getForObject("http://localhost:" + port + "/wrapped-async", String.class);
+
+        check(response).is("async");
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            check(dispatchInterceptor.getRequestClass().get(DispatcherType.REQUEST)).is("TestWrappedRequest");
+            check(dispatchInterceptor.getRequestClass().get(DispatcherType.ASYNC)).is("TestWrappedRequest");
+        });
+    }
+
+    @Test
+    void aroundScopeAppliesToErrorDispatch() {
+        dispatchInterceptor.getRequestClass().clear();
+
+        restTemplate.getForEntity("http://localhost:" + port + "/wrapped-error", Object.class);
+
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            check(dispatchInterceptor.getRequestClass().get(DispatcherType.REQUEST)).is("TestWrappedRequest");
+            check(dispatchInterceptor.getRequestClass().get(DispatcherType.ERROR)).is("TestWrappedRequest");
+        });
+    }
+
+    @Test
     void asyncDispatch() {
         String url = "http://localhost:" + port + "/async";
 

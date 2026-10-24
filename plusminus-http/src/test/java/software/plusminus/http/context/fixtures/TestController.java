@@ -36,6 +36,21 @@ public class TestController {
         return request.get().getRequestURI() + " " + handlerMethod.get().getMethod().getName();
     }
 
+    @GetMapping("/wrapped")
+    public String wrapped(HttpServletRequest argument) {
+        return argument.getClass().getSimpleName() + " " + request.get().getClass().getSimpleName();
+    }
+
+    @GetMapping("/wrapped-async")
+    public Callable<String> wrappedAsync() {
+        return () -> "async";
+    }
+
+    @GetMapping("/wrapped-error")
+    public String wrappedError() {
+        throw new IllegalStateException("Wrapped error");
+    }
+
     @GetMapping("/async")
     public Callable<String> async() {
         return () -> {

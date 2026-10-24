@@ -21,6 +21,8 @@ public class TestDispatchInterceptor implements HandlerInterceptor, WebMvcConfig
     private final Context<HttpServletRequest> requestContext;
     @Getter
     private final Map<DispatcherType, Boolean> requestBound = new ConcurrentHashMap<>();
+    @Getter
+    private final Map<DispatcherType, String> requestClass = new ConcurrentHashMap<>();
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -30,6 +32,7 @@ public class TestDispatchInterceptor implements HandlerInterceptor, WebMvcConfig
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         requestBound.put(request.getDispatcherType(), requestContext.optional().isPresent());
+        requestClass.put(request.getDispatcherType(), requestContext.get().getClass().getSimpleName());
         return true;
     }
 }
